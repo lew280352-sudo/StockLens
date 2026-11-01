@@ -5,6 +5,24 @@ services:
     environment:
       APP_ORIGIN: ${APP_ORIGIN:-http://localhost:4173}
       NEWS_ENABLED: ${NEWS_ENABLED:-true}
+      FINNHUB_API_KEY: ${FINNHUB_API_KEY:-}
+      ALPHAVANTAGE_API_KEY: ${ALPHAVANTAGE_API_KEY:-}
+      MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:-}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      EMAIL_LOGIN_OTP_ENABLED: ${EMAIL_LOGIN_OTP_ENABLED:-false}
+      AI_ENABLED: ${AI_ENABLED:-true}
+      AI_PROVIDER: ${AI_PROVIDER:-auto}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-qwen/qwen3.8-27b}
+      OLLAMA_URL: ${OLLAMA_URL:-http://127.0.0.1:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:8b}
     ports:
       - "127.0.0.1:4173:4173"
     volumes:
