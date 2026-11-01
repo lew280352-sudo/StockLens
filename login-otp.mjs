@@ -21,7 +21,7 @@ export async function createLoginOtp(db, { enabled = false, smtpHost = '', smtpP
     catch (error) {await db.run('DELETE FROM login_otp WHERE id=?', [id]);throw error;}
     return { challengeId: id, factor: 'email', expiresMinutes: 10 };
   }
-  async function verify(id, code) {
+  async function verify(id, code, onVerified=(userId)=>userId) {
     if (!enabled) return null;
     if (typeof id !== 'string' || !/^[a-f0-9]{64}$/.test(id) || typeof code !== 'string' || !/^[0-9]{6}$/.test(code)) return null;
     return db.transaction(async tx=>{
@@ -30,7 +30,7 @@ export async function createLoginOtp(db, { enabled = false, smtpHost = '', smtpP
       await tx.run('UPDATE login_otp SET attempts=attempts+1 WHERE id=?',[id]);
       if(!timingSafeEqual(digest(id,code),Buffer.from(row.code_hash,'hex')))return null;
       if(!(await tx.run('DELETE FROM login_otp WHERE id=?',[id])).changes)return null;
-      return row.user_id;
+      return onVerified(row.user_id,tx);
     });
   }
   return { enabled, request, verify, close() {transport?.close();} };

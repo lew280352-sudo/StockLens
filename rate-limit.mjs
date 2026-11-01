@@ -15,7 +15,8 @@ export async function createAuthLimiter(db,{trustedProxyHops=0}={}){
   const digest=s=>createHash('sha256').update(s).digest('hex');
   return {async consume({peerAddress='unknown',forwardedFor,email='',now=Date.now()}){
     const ip=clientAddress(peerAddress,forwardedFor,trustedProxyHops);
-    const buckets=[[digest('ip:'+ip),200],[digest('account:'+email.trim().toLowerCase().slice(0,254)),10]];
+    const buckets=[[digest('ip:'+ip),200]];
+    if(email)buckets.push([digest('account:'+email.trim().toLowerCase().slice(0,254)),10]);
     const limited=await db.transaction(async tx=>{
       await tx.run('DELETE FROM auth_limits WHERE until<=?',[now]);
       let blocked=false;

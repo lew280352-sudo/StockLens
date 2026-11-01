@@ -2,6 +2,7 @@ import http from 'node:http';
 import { openDatabase } from './database.mjs';
 import { initializeSchema } from './schema.mjs';
 import {createAuthLimiter} from './rate-limit.mjs';
+import {runtimeConfig} from './config.mjs';
 import { randomBytes, randomUUID, scrypt, createHash, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import { mkdirSync, readFileSync } from 'node:fs';
@@ -136,15 +137,26 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
     if (!row) fail(401, 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
     const hash = await passwordHash(password, row.salt);
     if (!timingSafeEqual(hash, Buffer.from(row.password_hash, 'hex')) || (await db.get('SELECT password_hash FROM users WHERE id=?', [user.id]))?.password_hash !== row.password_hash) fail(401, 'รหัสผ่านไม่ถูกต้อง');
+    return row.password_hash;
   }
-  async function checkMfa(userId, code, { consume = false } = {}) {
-    const row = await db.get('SELECT secret,last_step FROM user_mfa WHERE user_id=?', [userId]);
+  async function checkMfa(userId, code, { consume = false, connection=db } = {}) {
+    const row = await connection.get('SELECT secret,last_step FROM user_mfa WHERE user_id=?', [userId]);
     if (!row?.secret) return true;
     if (!mfaKey) fail(503, 'เซิร์ฟเวอร์ไม่มีคีย์ MFA กรุณาติดต่อผู้ดูแล');
     const step = verifyTotp(decryptSecret(row.secret, mfaKey), code, { lastStep: row.last_step });
     if (step === null) fail(401, 'รหัส MFA ไม่ถูกต้องหรือถูกใช้แล้ว');
-    if (consume && !(await db.run('UPDATE user_mfa SET last_step=? WHERE user_id=? AND last_step<?', [step, userId, step])).changes) fail(401, 'รหัส MFA ถูกใช้แล้ว');
+    if (consume && !(await connection.run('UPDATE user_mfa SET last_step=? WHERE user_id=? AND last_step<? AND secret=?', [step, userId, step,row.secret])).changes) fail(401, 'รหัส MFA ถูกใช้แล้ว');
     return true;
+  }
+  async function requireSession(tx,req,userId,credentialHash){
+    const user=await tx.get('SELECT u.id,u.password_hash FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?',[tokenHash(tokenFrom(req)),Date.now()]);
+    if(!user||user.id!==userId||(credentialHash&&user.password_hash!==credentialHash))fail(401,'รหัสผ่านหรือเซสชันเปลี่ยนแล้ว กรุณาเข้าสู่ระบบใหม่');
+  }
+  async function newSession(tx,req,userId){
+    await tx.run('DELETE FROM sessions WHERE expires_at<=? OR token_hash=?',[Date.now(),tokenHash(tokenFrom(req))]);
+    const token=randomBytes(32).toString('hex');
+    await tx.run('INSERT INTO sessions VALUES(?,?,?)',[tokenHash(token),userId,Date.now()+SESSION_AGE]);
+    return token;
   }
   const server = http.createServer(async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');res.setHeader('X-Content-Type-Options', 'nosniff');res.setHeader('Referrer-Policy', 'no-referrer');res.setHeader('X-Frame-Options', 'DENY');
@@ -267,6 +279,7 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
         if (await db.get('SELECT id FROM users WHERE email=?', [email])) fail(409, 'อีเมลนี้ถูกใช้แล้ว กรุณาเข้าสู่ระบบ');
         const recoveryCode = newRecoveryCode();await db.transaction(async (tx) => {
 
+          if(await tx.get('SELECT id FROM users WHERE email=?',[email]))fail(409,'อีเมลนี้ถูกใช้แล้ว กรุณาเข้าสู่ระบบ');
           await tx.run('INSERT INTO users VALUES(?,?,?,?,?,?)', [id, email, name, salt, hash, Date.now()]);
           await tx.run('INSERT INTO user_state(user_id,data) VALUES(?,?)', [id, JSON.stringify(initialState(!!quoteApiKey))]);
           if (quoteApiKey) await tx.run('INSERT INTO market_feed_migrations VALUES(?)', [id]);
@@ -291,15 +304,12 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
 
         res.setHeader('Set-Cookie', cookie('', 0, req));return send(res, 200, { ok: true, recoveryCode });
       }
-      if (pathname === '/api/recovery-code' && req.method === 'POST') {
-        const user = await currentUser(req);if (!user) fail(401, 'กรุณาเข้าสู่ระบบ');
-        const input = await body(req);await limit(req, user.email);
-        if (typeof input.password !== 'string' || input.password.length > 128) fail(401, 'รหัสผ่านไม่ถูกต้อง');
-        const row = await db.get('SELECT salt,password_hash FROM users WHERE id=?', [user.id]);
-        const hash = await passwordHash(input.password, row.salt);
-        if (!timingSafeEqual(hash, Buffer.from(row.password_hash, 'hex')) || (await currentUser(req))?.id !== user.id) fail(401, 'รหัสผ่านไม่ถูกต้องหรือเซสชันหมดอายุ');
-        const recoveryCode = newRecoveryCode();await db.run('INSERT INTO recovery_codes VALUES(?,?) ON CONFLICT(user_id) DO UPDATE SET code_hash=excluded.code_hash', [user.id, tokenHash(recoveryCode)]);
-        return send(res, 200, { recoveryCode });
+      if(pathname==='/api/recovery-code'&&req.method==='POST'){
+        const user=await currentUser(req);if(!user)fail(401,'กรุณาเข้าสู่ระบบ');
+        const input=await body(req);await limit(req,user.email);const credentialHash=await checkPassword(user,input.password);
+        const recoveryCode=newRecoveryCode();
+        await db.transaction(async tx=>{await requireSession(tx,req,user.id,credentialHash);await tx.run('INSERT INTO recovery_codes VALUES(?,?) ON CONFLICT(user_id) DO UPDATE SET code_hash=excluded.code_hash',[user.id,tokenHash(recoveryCode)]);});
+        return send(res,200,{recoveryCode});
       }
       if (pathname === '/api/security' && req.method === 'GET') {
         const user = await currentUser(req);if (!user) fail(401, 'กรุณาเข้าสู่ระบบ');
@@ -314,7 +324,7 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
         catch (error) {fail(error.message === 'Email verification is not configured' ? 503 : error.message === 'Wait before requesting another email' ? 429 : 503, 'ยังส่งอีเมลไม่ได้ ตรวจการตั้งค่า SMTP หรือรอสักครู่');}
       }
       if (pathname === '/api/email/verify' && req.method === 'POST') {
-        const input = await body(req);await limit(req, 'email-verification');
+        const input = await body(req);await limit(req);
         if (!(await email.verify(input.token))) fail(400, 'ลิงก์ไม่ถูกต้อง หมดอายุ หรือใช้แล้ว');
         return send(res, 200, { ok: true });
       }
@@ -344,16 +354,18 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
         if ((await currentUser(req))?.id !== user.id) fail(401, 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
         return send(res, 200, result);
       }
-      if (pathname === '/api/mfa/setup' && req.method === 'POST') {
-        const user = await currentUser(req);if (!user) fail(401, 'กรุณาเข้าสู่ระบบ');
-        if (!mfaKey) fail(503, 'ผู้ดูแลยังไม่ได้ตั้งค่า MFA_ENCRYPTION_KEY');
-        const input = await body(req);await limit(req, user.email);await checkPassword(user, input.password);
-        if ((await currentUser(req))?.id !== user.id) fail(401, 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
-        if ((await db.get('SELECT secret FROM user_mfa WHERE user_id=?', [user.id]))?.secret) fail(409, 'เปิด MFA อยู่แล้ว');
-        const secret = newTotpSecret(),encrypted = encryptSecret(secret, mfaKey);
-        await db.run('INSERT INTO user_mfa(user_id,pending_secret,pending_until) VALUES(?,?,?) ON CONFLICT(user_id) DO UPDATE SET pending_secret=excluded.pending_secret,pending_until=excluded.pending_until', [user.id, encrypted, Date.now() + 10 * 60 * 1000]);
-        const url = `otpauth://totp/${encodeURIComponent('StockLens:' + user.email)}?secret=${secret}&issuer=StockLens&algorithm=SHA1&digits=6&period=30`;
-        return send(res, 200, { secret, url, expiresMinutes: 10 });
+      if(pathname==='/api/mfa/setup'&&req.method==='POST'){
+        const user=await currentUser(req);if(!user)fail(401,'กรุณาเข้าสู่ระบบ');
+        if(!mfaKey)fail(503,'ผู้ดูแลยังไม่ได้ตั้งค่า MFA_ENCRYPTION_KEY');
+        const input=await body(req);await limit(req,user.email);const credentialHash=await checkPassword(user,input.password);
+        const secret=newTotpSecret(),encrypted=encryptSecret(secret,mfaKey);
+        await db.transaction(async tx=>{
+          await requireSession(tx,req,user.id,credentialHash);
+          if((await tx.get('SELECT secret FROM user_mfa WHERE user_id=?',[user.id]))?.secret)fail(409,'เปิด MFA อยู่แล้ว');
+          await tx.run('INSERT INTO user_mfa(user_id,pending_secret,pending_until) VALUES(?,?,?) ON CONFLICT(user_id) DO UPDATE SET pending_secret=excluded.pending_secret,pending_until=excluded.pending_until',[user.id,encrypted,Date.now()+10*60*1000]);
+        });
+        const url=`otpauth://totp/${encodeURIComponent('StockLens:'+user.email)}?secret=${secret}&issuer=StockLens&algorithm=SHA1&digits=6&period=30`;
+        return send(res,200,{secret,url,expiresMinutes:10});
       }
       if (pathname === '/api/mfa/enable' && req.method === 'POST') {
         const user = await currentUser(req);if (!user) fail(401, 'กรุณาเข้าสู่ระบบ');
@@ -365,6 +377,7 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
         const step = verifyTotp(decryptSecret(row.pending_secret, mfaKey), input.code);
         if (step === null) fail(401, 'รหัส MFA ไม่ถูกต้อง');await db.transaction(async (tx) => {
 
+          await requireSession(tx,req,user.id);
           const changed=await tx.run('UPDATE user_mfa SET secret=pending_secret,pending_secret=NULL,pending_until=NULL,last_step=? WHERE user_id=? AND secret IS NULL AND pending_secret=? AND pending_until>=?', [step,user.id,row.pending_secret,Date.now()]);
           if(!changed.changes)fail(409,'การตั้งค่า MFA นี้ถูกใช้แล้ว กรุณาตรวจสถานะล่าสุด');
           await tx.run('DELETE FROM login_otp WHERE user_id=?', [user.id]);
@@ -373,18 +386,17 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
 
         return send(res, 200, { ok: true });
       }
-      if (pathname === '/api/mfa/disable' && req.method === 'POST') {
-        const user = await currentUser(req);if (!user) fail(401, 'กรุณาเข้าสู่ระบบ');
-        const input = await body(req);await limit(req, user.email);await checkPassword(user, input.password);
-        if ((await currentUser(req))?.id !== user.id) fail(401, 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
-        if (!(await db.get('SELECT secret FROM user_mfa WHERE user_id=?', [user.id]))?.secret) fail(409, 'ยังไม่ได้เปิด MFA');
-        await checkMfa(user.id, input.code, { consume: true });await db.transaction(async (tx) => {
-
-          await tx.run('DELETE FROM user_mfa WHERE user_id=?', [user.id]);
-          await tx.run('DELETE FROM sessions WHERE user_id=? AND token_hash<>?', [user.id, tokenHash(tokenFrom(req))]);});
-
-
-        return send(res, 200, { ok: true });
+      if(pathname==='/api/mfa/disable'&&req.method==='POST'){
+        const user=await currentUser(req);if(!user)fail(401,'กรุณาเข้าสู่ระบบ');
+        const input=await body(req);await limit(req,user.email);const credentialHash=await checkPassword(user,input.password);
+        await db.transaction(async tx=>{
+          await requireSession(tx,req,user.id,credentialHash);
+          if(!(await tx.get('SELECT secret FROM user_mfa WHERE user_id=?',[user.id]))?.secret)fail(409,'ยังไม่ได้เปิด MFA');
+          await checkMfa(user.id,input.code,{consume:true,connection:tx});
+          await tx.run('DELETE FROM user_mfa WHERE user_id=?',[user.id]);
+          await tx.run('DELETE FROM sessions WHERE user_id=? AND token_hash<>?',[user.id,tokenHash(tokenFrom(req))]);
+        });
+        return send(res,200,{ok:true});
       }
       if (pathname === '/api/login' && req.method === 'POST') {
         const input = await body(req),email = typeof input.email === 'string' ? input.email.trim().toLowerCase() : '';
@@ -393,42 +405,49 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
         const user = await db.get('SELECT * FROM users WHERE email=?', [email]);
         const hash = await passwordHash(input.password, user?.salt || '0'.repeat(32));
         if (!user || !timingSafeEqual(hash, Buffer.from(user.password_hash, 'hex')) || (await db.get('SELECT password_hash FROM users WHERE id=?', [user.id]))?.password_hash !== user.password_hash) fail(401, 'อีเมลหรือรหัสผ่านไม่ถูกต้อง');
-        if ((await db.get('SELECT secret FROM user_mfa WHERE user_id=?', [user.id]))?.secret) {
+        const mfaSecret=(await db.get('SELECT secret FROM user_mfa WHERE user_id=?',[user.id]))?.secret||null;
+        if(mfaSecret){
           if (!input.totp) return send(res, 202, { factor: 'authenticator' });
           await checkMfa(user.id, input.totp, { consume: true });
         } else if (loginOtp.enabled) {
           try {return send(res, 202, await loginOtp.request(user));}
           catch (error) {fail(error.message === 'Wait before requesting another login code' ? 429 : 503, 'ส่งรหัสเข้าสู่อีเมลไม่ได้ กรุณาตรวจการตั้งค่า SMTP หรือรอ 1 นาที');}
         }
-        await db.run('DELETE FROM sessions WHERE expires_at<=? OR token_hash=?', [Date.now(), tokenHash(tokenFrom(req))]);
-        const token = randomBytes(32).toString('hex');await db.run('INSERT INTO sessions VALUES(?,?,?)', [tokenHash(token), user.id, Date.now() + SESSION_AGE]);
+        const token=await db.transaction(async tx=>{
+          const fresh=await tx.get('SELECT password_hash FROM users WHERE id=?',[user.id]);
+          const factor=(await tx.get('SELECT secret FROM user_mfa WHERE user_id=?',[user.id]))?.secret||null;
+          if(!fresh||fresh.password_hash!==user.password_hash||factor!==mfaSecret)fail(401,'ข้อมูลยืนยันตัวตนเปลี่ยนแล้ว กรุณาเข้าสู่ระบบใหม่');
+          return newSession(tx,req,user.id);
+        });
         res.setHeader('Set-Cookie', cookie(token, SESSION_AGE / 1000, req));
         return send(res, 200, await userData({ id: user.id, name: user.name, email: user.email }));
       }
       if (pathname === '/api/login/verify' && req.method === 'POST') {
-        const input = await body(req);await limit(req, 'email-login');
-        const userId = await loginOtp.verify(input.challengeId, input.code);
-        if (!userId) fail(401, 'รหัสอีเมลไม่ถูกต้อง หมดอายุ หรือถูกใช้แล้ว');
-        const user = await db.get('SELECT id,name,email FROM users WHERE id=?', [userId]);
-        if (!user) fail(401, 'บัญชีนี้ไม่พร้อมใช้งาน');
-        if ((await db.get('SELECT secret FROM user_mfa WHERE user_id=?', [user.id]))?.secret) fail(401, 'บัญชีนี้ต้องใช้รหัส Authenticator');
-        await db.run('DELETE FROM sessions WHERE expires_at<=? OR token_hash=?', [Date.now(), tokenHash(tokenFrom(req))]);
-        const token = randomBytes(32).toString('hex');await db.run('INSERT INTO sessions VALUES(?,?,?)', [tokenHash(token), user.id, Date.now() + SESSION_AGE]);
+        const input = await body(req);await limit(req);
+        const verified=await loginOtp.verify(input.challengeId,input.code,async(userId,tx)=>{
+          const user=await tx.get('SELECT id,name,email FROM users WHERE id=?',[userId]);
+          if(!user)fail(401,'บัญชีนี้ไม่พร้อมใช้งาน');
+          if((await tx.get('SELECT secret FROM user_mfa WHERE user_id=?',[user.id]))?.secret)fail(401,'บัญชีนี้ต้องใช้รหัส Authenticator');
+          return {user,token:await newSession(tx,req,user.id)};
+        });
+        if(!verified)fail(401,'รหัสอีเมลไม่ถูกต้อง หมดอายุ หรือถูกใช้แล้ว');
+        const {user,token}=verified;
         res.setHeader('Set-Cookie', cookie(token, SESSION_AGE / 1000, req));
         return send(res, 200, await userData(user));
       }
       if (pathname === '/api/logout' && req.method === 'POST') {
         await body(req);await db.run('DELETE FROM sessions WHERE token_hash=?', [tokenHash(tokenFrom(req))]);res.setHeader('Set-Cookie', cookie('', 0, req));return send(res, 200, { ok: true });
       }
-      if (pathname === '/api/account/delete' && req.method === 'POST') {
-        const user = await currentUser(req);if (!user) fail(401, 'กรุณาเข้าสู่ระบบ');
-        const input = await body(req);await limit(req, user.email);await checkPassword(user, input.password);
-        if ((await currentUser(req))?.id !== user.id) fail(401, 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
-        if (input.confirm !== user.email) fail(400, 'กรอกอีเมลให้ตรงกับบัญชีเพื่อยืนยันการลบ');
-        await checkMfa(user.id, input.totp, { consume: true });
-        await db.run('DELETE FROM users WHERE id=?', [user.id]);
-        res.setHeader('Set-Cookie', cookie('', 0, req));
-        return send(res, 200, { ok: true });
+      if(pathname==='/api/account/delete'&&req.method==='POST'){
+        const user=await currentUser(req);if(!user)fail(401,'กรุณาเข้าสู่ระบบ');
+        const input=await body(req);await limit(req,user.email);const credentialHash=await checkPassword(user,input.password);
+        if(input.confirm!==user.email)fail(400,'กรอกอีเมลให้ตรงกับบัญชีเพื่อยืนยันการลบ');
+        await db.transaction(async tx=>{
+          await requireSession(tx,req,user.id,credentialHash);
+          await checkMfa(user.id,input.totp,{consume:true,connection:tx});
+          await tx.run('DELETE FROM users WHERE id=?',[user.id]);
+        });
+        res.setHeader('Set-Cookie',cookie('',0,req));return send(res,200,{ok:true});
       }
       if (pathname === '/api/state' && req.method === 'PUT') {
         if (!(await currentUser(req))) fail(401, 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
@@ -480,11 +499,9 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
   }catch(error){await db.close();throw error;}
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const port = Number(process.env.PORT || 4173),host = process.env.HOST || '127.0.0.1';
-  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('PORT must be an integer from 1 to 65535');
-  if (!['127.0.0.1', 'localhost', '::1'].includes(host) && !process.env.APP_ORIGIN) throw new Error('Set APP_ORIGIN before listening beyond localhost');
+  const {port,host,...deployment}=runtimeConfig();
   const groqApiKey = process.env.GROQ_API_KEY?.trim() || '',configuredProvider = (process.env.AI_PROVIDER || 'auto').trim().toLowerCase(),aiProvider = configuredProvider === 'auto' ? groqApiKey ? 'hybrid' : 'ollama' : configuredProvider;
-  const server = await createApp({ databasePath: process.env.DATABASE_PATH ? path.resolve(process.env.DATABASE_PATH) : undefined, databaseUrl: process.env.TURSO_DATABASE_URL || '', authToken: process.env.TURSO_AUTH_TOKEN || '', trustedProxyHops:Number(process.env.TRUST_PROXY_HOPS||0), publicOrigin: process.env.APP_ORIGIN || null, refreshNews: process.env.NEWS_ENABLED !== 'false', quoteApiKey: process.env.FINNHUB_API_KEY?.trim() || '', historyApiKey: process.env.ALPHAVANTAGE_API_KEY?.trim() || '', aiEnabled: process.env.AI_ENABLED !== 'false', aiProvider, aiBaseUrl: process.env.OLLAMA_URL || 'http://127.0.0.1:11434', aiApiKey: groqApiKey, aiModel: ['groq', 'hybrid'].includes(aiProvider) ? process.env.GROQ_MODEL || 'qwen/qwen3.8-27b' : process.env.OLLAMA_MODEL || 'qwen3:8b', aiFallbackModel: process.env.OLLAMA_MODEL || 'qwen3:8b', mfaKeyHex: process.env.MFA_ENCRYPTION_KEY?.trim() || '', pushPublicKey: process.env.VAPID_PUBLIC_KEY?.trim() || '', pushPrivateKey: process.env.VAPID_PRIVATE_KEY?.trim() || '', pushSubject: process.env.VAPID_SUBJECT?.trim() || '', emailOrigin: process.env.APP_ORIGIN || `http://127.0.0.1:${port}`, smtpHost: process.env.SMTP_HOST?.trim() || '', smtpPort: Number(process.env.SMTP_PORT || 587), smtpUser: process.env.SMTP_USER?.trim() || '', smtpPass: process.env.SMTP_PASS?.trim() || '', smtpFrom: process.env.SMTP_FROM?.trim() || '', emailLoginEnabled: process.env.EMAIL_LOGIN_OTP_ENABLED === 'true' });
+  const server = await createApp({ ...deployment, databasePath: process.env.DATABASE_PATH ? path.resolve(process.env.DATABASE_PATH) : undefined, refreshNews: process.env.NEWS_ENABLED !== 'false', quoteApiKey: process.env.FINNHUB_API_KEY?.trim() || '', historyApiKey: process.env.ALPHAVANTAGE_API_KEY?.trim() || '', aiEnabled: process.env.AI_ENABLED !== 'false', aiProvider, aiBaseUrl: process.env.OLLAMA_URL || 'http://127.0.0.1:11434', aiApiKey: groqApiKey, aiModel: ['groq', 'hybrid'].includes(aiProvider) ? process.env.GROQ_MODEL || 'qwen/qwen3.8-27b' : process.env.OLLAMA_MODEL || 'qwen3:8b', aiFallbackModel: process.env.OLLAMA_MODEL || 'qwen3:8b', mfaKeyHex: process.env.MFA_ENCRYPTION_KEY?.trim() || '', pushPublicKey: process.env.VAPID_PUBLIC_KEY?.trim() || '', pushPrivateKey: process.env.VAPID_PRIVATE_KEY?.trim() || '', pushSubject: process.env.VAPID_SUBJECT?.trim() || '', emailOrigin: deployment.publicOrigin || `http://127.0.0.1:${port}`, smtpHost: process.env.SMTP_HOST?.trim() || '', smtpPort: Number(process.env.SMTP_PORT || 587), smtpUser: process.env.SMTP_USER?.trim() || '', smtpPass: process.env.SMTP_PASS?.trim() || '', smtpFrom: process.env.SMTP_FROM?.trim() || '', emailLoginEnabled: process.env.EMAIL_LOGIN_OTP_ENABLED === 'true' });
   server.listen(port, host, () => console.log(`StockLens: http://${host}:${server.address().port}`));
   server.on('error', (error) => {console.error(error.code === 'EADDRINUSE' ? `พอร์ต ${port} ถูกใช้อยู่แล้ว ตั้งค่า PORT เป็นหมายเลขอื่น` : error.message);process.exitCode = 1;});
   for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => {server.shutdown().catch(()=>{process.exitCode=1;});});

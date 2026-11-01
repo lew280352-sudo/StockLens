@@ -26,3 +26,12 @@ test('forwarded headers are ignored unless trusted hops are explicit and rightmo
   assert.equal(clientAddress('127.0.0.1','198.51.100.99, not-an-ip',1),'127.0.0.1');
   assert.equal(clientAddress('127.0.0.1','2001:db8::1',1),'2001:db8::1');
 });
+
+
+test('token verification without an account key does not impose a shared ten-attempt account limit',async()=>{
+  const db=await openDatabase({databasePath:':memory:'});
+  try{
+    const limiter=await createAuthLimiter(db);
+    for(let i=0;i<20;i++)await limiter.consume({peerAddress:'192.0.2.1',now:1000});
+  }finally{await db.close();}
+});
