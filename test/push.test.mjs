@@ -36,7 +36,7 @@ test('push sends only new enabled news for the subscribed account and stops afte
 test('push HTTP endpoints require a session and keep subscriptions account-scoped', async (t) => {
   const sent = [];
   const server = await createApp({ databasePath: ':memory:', pushPublicKey: 'fixture-public', pushPrivateKey: 'fixture-private', pushSubject: 'https://example.org', pushSender: async (sub) => sent.push(sub.endpoint) });
-  server.listen(0, '127.0.0.1');await once(server, 'listening');t.after(() => new Promise((resolve) => server.close(resolve)));
+  server.listen(0, '127.0.0.1');await once(server, 'listening');t.after(() => server.shutdown());
   const base = `http://127.0.0.1:${server.address().port}`;
   async function call(route, { method = 'GET', body, cookie } = {}) {
     const response = await fetch(base + route, { method, headers: { Origin: base, ...(cookie ? { Cookie: cookie } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined });

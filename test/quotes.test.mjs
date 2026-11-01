@@ -24,7 +24,7 @@ test('quotes require configuration; coalesce requests, persist cooldown/cache an
 test('quote API authenticates, uses only followed companies, and rechecks logout after upstream request', async (t) => {
   let release, started;const ready = new Promise((r) => started = r),gate = new Promise((r) => release = r);let calls = 0;
   const server = await createApp({ databasePath: ':memory:', quoteApiKey: 'fixture-secret', quoteFetcher: async (url) => {calls++;assert.ok(url.endsWith('symbol=AAPL'));started();await gate;return Response.json({ c: 123, t: Math.floor(Date.now() / 1000) });} });
-  server.listen(0, '127.0.0.1');await once(server, 'listening');t.after(() => {release();return new Promise((r) => server.close(r));});const base = `http://127.0.0.1:${server.address().port}`;
+  server.listen(0, '127.0.0.1');await once(server, 'listening');t.after(() => {release();return server.shutdown();});const base = `http://127.0.0.1:${server.address().port}`;
   async function call(route, payload, cookie, method = payload ? 'POST' : 'GET') {
     return fetch(base + route, { method, headers: { Origin: base, ...(cookie ? { Cookie: cookie } : {}), ...(payload ? { 'Content-Type': 'application/json' } : {}) }, body: payload ? JSON.stringify(payload) : undefined });
   }

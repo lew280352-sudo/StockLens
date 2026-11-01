@@ -16,7 +16,7 @@ test('TOTP uses six-digit time codes and encrypted seeds', () => {
 
 test('MFA requires the second factor, prevents replay, and account deletion removes sessions', async (t) => {
   const server = await createApp({ databasePath: ':memory:', mfaKeyHex: randomBytes(32).toString('hex') });
-  server.listen(0, '127.0.0.1');await once(server, 'listening');t.after(() => new Promise((resolve) => server.close(resolve)));
+  server.listen(0, '127.0.0.1');await once(server, 'listening');t.after(() => server.shutdown());
   const base = `http://127.0.0.1:${server.address().port}`;
   async function call(route, { method = 'GET', body, cookie } = {}) {
     const response = await fetch(base + route, { method, headers: { Origin: base, ...(cookie ? { Cookie: cookie } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined });
@@ -44,7 +44,7 @@ test('MFA requires the second factor, prevents replay, and account deletion remo
 });
 
 test('deleting an account requires reauthentication and revokes all sessions', async (t) => {
-  const server = await createApp({ databasePath: ':memory:' });server.listen(0, '127.0.0.1');await once(server, 'listening');t.after(() => new Promise((resolve) => server.close(resolve)));
+  const server = await createApp({ databasePath: ':memory:' });server.listen(0, '127.0.0.1');await once(server, 'listening');t.after(() => server.shutdown());
   const base = `http://127.0.0.1:${server.address().port}`;
   async function call(route, { method = 'GET', body, cookie } = {}) {
     const response = await fetch(base + route, { method, headers: { Origin: base, ...(cookie ? { Cookie: cookie } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined });

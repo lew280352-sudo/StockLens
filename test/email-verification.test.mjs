@@ -9,7 +9,7 @@ import { createEmailVerification } from '../email-verification.mjs';
 test('email verification sends a one-hour single-use link without exposing it in account data', async (t) => {
   const sent = [];
   const server = await createApp({ databasePath: ':memory:', emailOrigin: 'https://stocklens.example', smtpHost: 'smtp.example', smtpUser: 'sender', smtpPass: 'fixture', smtpFrom: 'noreply@example.com', emailSender: async (message) => sent.push(message) });
-  server.listen(0, '127.0.0.1');await once(server, 'listening');t.after(() => new Promise((resolve) => server.close(resolve)));
+  server.listen(0, '127.0.0.1');await once(server, 'listening');t.after(() => server.shutdown());
   const base = `http://127.0.0.1:${server.address().port}`;
   async function call(route, { method = 'GET', body, cookie } = {}) {
     const response = await fetch(base + route, { method, headers: { Origin: base, ...(cookie ? { Cookie: cookie } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined });

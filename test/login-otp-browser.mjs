@@ -26,4 +26,4 @@ try {
   await page.locator('#login-challenge-form [name=code]').fill(code);
   await page.locator('#login-challenge-form [type=submit]').click();await page.waitForSelector('body:not(.signed-out)');
   assert.deepEqual(errors, []);console.log('PASS: password then emailed code, including retry and successful login');
-} finally {await browser?.close();await new Promise((resolve) => server.close(resolve));}
+} finally {await browser?.close();await server.shutdown();}

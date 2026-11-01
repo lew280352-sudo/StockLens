@@ -7,7 +7,7 @@ import { createApp } from '../server.mjs';
 test('local app remains usable beside a protected HTTPS preview', async (t) => {
   const server = await createApp({ databasePath: ':memory:', publicOrigin: 'https://preview.example' });
   server.listen(0, '127.0.0.1');await once(server, 'listening');
-  t.after(() => new Promise((resolve) => server.close(resolve)));
+  t.after(() => server.shutdown());
   const base = `http://127.0.0.1:${server.address().port}`;
   const request = (route, { host, origin, body } = {}) => new Promise((resolve, reject) => {
     const req = http.request(base + route, { method: body ? 'POST' : 'GET', headers: { ...(host ? { Host: host } : {}), ...(origin ? { Origin: origin } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}) } }, (res) => {

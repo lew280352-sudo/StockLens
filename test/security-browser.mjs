@@ -37,4 +37,4 @@ try {
   await page.locator('#login-form [type=submit]').click();await page.waitForSelector('#login-challenge-form');
   assert.match(await page.locator('#login-challenge-form').innerText(), /Authenticator/);
   assert.deepEqual(errors, []);console.log('PASS: weekly chart, MFA setup, and second-factor login requirement in browser');
-} finally {await browser?.close();await new Promise((resolve) => server.close(resolve));}
+} finally {await browser?.close();await server.shutdown();}

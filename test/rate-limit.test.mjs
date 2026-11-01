@@ -5,7 +5,7 @@ import { createApp } from '../server.mjs';
 
 async function setup(t) {
   const server = await createApp({ databasePath: ':memory:' });server.listen(0, '127.0.0.1');await once(server, 'listening');
-  t.after(() => new Promise((resolve) => server.close(resolve)));
+  t.after(() => server.shutdown());
   const origin = `http://127.0.0.1:${server.address().port}`;
   return (endpoint, payload) => fetch(origin + endpoint, { method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
 }

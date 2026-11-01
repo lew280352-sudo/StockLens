@@ -44,7 +44,7 @@ test('research endpoints require login and give news links when AI is unavailabl
     return Response.json([row('Nvidia announces new chip', '2026-10-20T12:00:00Z', 'https://publisher.example/nvidia-chip')]);
   };
   const server = await createApp({ databasePath: ':memory:', quoteApiKey: 'fixture', researchFetcher: fetcher, aiEnabled: false });
-  server.listen(0, '127.0.0.1');await once(server, 'listening');t.after(() => new Promise((resolve) => server.close(resolve)));
+  server.listen(0, '127.0.0.1');await once(server, 'listening');t.after(() => server.shutdown());
   const base = `http://127.0.0.1:${server.address().port}`;
   const call = async (route, method = 'GET', body, cookie) => {
     const response = await fetch(base + route, { method, headers: { Origin: base, ...(cookie ? { Cookie: cookie } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined });

@@ -25,7 +25,7 @@ test('concurrent login code requests respect cooldown and concurrent guesses can
 test('email login requires a delivered single-use code after a correct password', async (t) => {
   const sent = [];
   const server = await createApp({ databasePath: ':memory:', emailLoginEnabled: true, ...mailConfig, emailSender: async (message) => sent.push(message) });
-  server.listen(0, '127.0.0.1');await once(server, 'listening');t.after(() => new Promise((resolve) => server.close(resolve)));
+  server.listen(0, '127.0.0.1');await once(server, 'listening');t.after(() => server.shutdown());
   const base = `http://127.0.0.1:${server.address().port}`;
   async function call(route, { body, cookie } = {}) {
     const response = await fetch(base + route, { method: 'POST', headers: { Origin: base, ...(cookie ? { Cookie: cookie } : {}), 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });

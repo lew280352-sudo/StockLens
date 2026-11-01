@@ -20,6 +20,7 @@ function showLoginChallenge(result,email,password){
   $('#login-challenge-form [name=code]').focus();
 }
 function showSignedOut(mode='register',message='',email=''){
+  clearTimeout(toastTimer);$('#toast').textContent='';$('#toast').classList.remove('show');
   currentUser=null;stateRevision=0;state=structuredClone(defaults);committedState=structuredClone(defaults);query='';newsFilter='all';selectedStock='AAPL';resetNews();resetQuotes();resetAI();resetForecast();resetResearch();
   if($('#mobile-menu').open)$('#mobile-menu').close();if($('#modal').open)$('#modal').close();$('#modal-body').innerHTML='';$('#main').innerHTML='';
   document.querySelectorAll('[data-user-name],[data-user-email],[data-user-avatar]').forEach(el=>el.textContent='');

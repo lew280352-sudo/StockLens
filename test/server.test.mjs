@@ -8,7 +8,7 @@ test('AI follow-up questions require a signed-in user and the same enabled headl
   const feed = feeds.find((item) => item.symbol === 'AAPL');
   assert.ok(feed);
   const server = await createApp({ databasePath: ':memory:', aiEnabled: true, aiFetcher: async (url, options) => url.endsWith('/api/tags') ? Response.json({ models: [{ name: 'qwen3:8b' }] }) : Response.json({ message: { content: JSON.stringify(JSON.parse(options.body).format?.properties?.sourceIds ? { answer: 'ประกาศผลิตภัณฑ์ใหม่', supported: true, sourceIds: [JSON.parse(JSON.parse(options.body).messages[1].content).articles[0].id] } : { title: 'สรุป Apple', summary: 'มีประกาศผลิตภัณฑ์ใหม่', facts: [], positiveFactors: [], risks: [], unknowns: [], confidence: 'low' }) } }), newsFetcher: async () => new Response('<rss><channel><item><title>Apple introduces a new product</title><link>https://www.apple.com/newsroom/example</link><pubDate>Wed, 21 Oct 2026 12:00:00 GMT</pubDate></item></channel></rss>') });
-  server.listen(0, '127.0.0.1');await once(server, 'listening');t.after(() => new Promise((resolve) => server.close(resolve)));
+  server.listen(0, '127.0.0.1');await once(server, 'listening');t.after(() => server.shutdown());
   const base = `http://127.0.0.1:${server.address().port}`;
   async function call(route, { method = 'GET', data, cookie } = {}) {const response = await fetch(base + route, { method, headers: { Origin: base, ...(cookie ? { Cookie: cookie } : {}), ...(data ? { 'Content-Type': 'application/json' } : {}) }, body: data ? JSON.stringify(data) : undefined });return { status: response.status, data: await response.json(), cookie: response.headers.get('set-cookie')?.split(';')[0] };}
   const account = { name: 'AI Tester', email: 'ai-qa@example.com', password: 'test-password-123' };
@@ -29,7 +29,7 @@ test('AI follow-up questions require a signed-in user and the same enabled headl
 
 test('registration, sessions, isolated news preferences, source validation and logout', async (t) => {
   const server = await createApp({ databasePath: ':memory:' });server.listen(0, '127.0.0.1');await once(server, 'listening');
-  t.after(() => new Promise((resolve) => server.close(resolve)));
+  t.after(() => server.shutdown());
   const base = `http://127.0.0.1:${server.address().port}`;
   const sessions = new Map();
   async function call(route, { method = 'GET', body, cookie, origin = base, revision, expectedUserId } = {}) {
@@ -86,7 +86,7 @@ test('reviewed RSS URLs produce account-isolated news while other URLs remain bo
   const feed = verifiedFeeds[0],xml = '<rss><channel><item><title>Federal Reserve announcement</title><link>https://www.federalreserve.gov/newsevents/pressreleases/example.htm</link><pubDate>Wed, 21 Oct 2026 12:00:00 GMT</pubDate></item></channel></rss>';
   let calls = 0;
   const server = await createApp({ databasePath: ':memory:', newsFetcher: async (url) => {if (url === feed.feedUrl) {calls++;return new Response(xml);}assert.ok(url.startsWith('https://'));return new Response('<rss><channel></channel></rss>');} });
-  server.listen(0, '127.0.0.1');await once(server, 'listening');t.after(() => new Promise((resolve) => server.close(resolve)));
+  server.listen(0, '127.0.0.1');await once(server, 'listening');t.after(() => server.shutdown());
   const base = `http://127.0.0.1:${server.address().port}`;
   async function request(route, { method = 'GET', body, cookie } = {}) {
     const response = await fetch(base + route, { method, headers: { Origin: base, ...(cookie ? { Cookie: cookie } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined });
@@ -110,7 +110,7 @@ test('reviewed RSS URLs produce account-isolated news while other URLs remain bo
 });
 
 test('following a newly supported stock restores its Finnhub news source', async (t) => {
-  const server = await createApp({ databasePath: ':memory:', quoteApiKey: 'fixture' });server.listen(0, '127.0.0.1');await once(server, 'listening');t.after(() => new Promise((resolve) => server.close(resolve)));
+  const server = await createApp({ databasePath: ':memory:', quoteApiKey: 'fixture' });server.listen(0, '127.0.0.1');await once(server, 'listening');t.after(() => server.shutdown());
   const base = `http://127.0.0.1:${server.address().port}`,account = { name: 'Investor', email: 'new-stock@example.com', password: 'correct-test-password' };
   async function call(route, method = 'GET', body, cookie) {const response = await fetch(base + route, { method, headers: { Origin: base, ...(cookie ? { Cookie: cookie } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined });return { status: response.status, data: await response.json(), cookie: response.headers.get('set-cookie')?.split(';')[0] };}
   assert.equal((await call('/api/register', 'POST', account)).status, 201);

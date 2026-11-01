@@ -78,14 +78,16 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
   try {
   await initializeSchema(db);
   if (quoteApiKey) {
-    for (const row of await db.all('SELECT user_id,data FROM user_state WHERE user_id NOT IN (SELECT user_id FROM market_feed_migrations)', [])) {
+    await db.transaction(async tx=>{
+    for (const row of await tx.all('SELECT user_id,data FROM user_state WHERE user_id NOT IN (SELECT user_id FROM market_feed_migrations)', [])) {
       let state;try {state = JSON.parse(row.data);} catch {continue;}
       if (!Array.isArray(state.sources)) continue;
       const known = new Set(state.sources.map((source) => source.url));
       for (const feed of marketFeeds) if (!known.has(feed.url) && state.sources.length < 100) state.sources.push({ id: feed.id, name: feed.name, url: feed.url, type: 'finance', symbol: feed.symbol, enabled: true });
-      await db.run('UPDATE user_state SET data=?,revision=revision+1 WHERE user_id=?', [JSON.stringify(state), row.user_id]);
-      await db.run('INSERT INTO market_feed_migrations VALUES(?)', [row.user_id]);
+      await tx.run('UPDATE user_state SET data=?,revision=revision+1 WHERE user_id=?', [JSON.stringify(state), row.user_id]);
+      await tx.run('INSERT INTO market_feed_migrations VALUES(?)', [row.user_id]);
     }
+    });
   }
   const selectedFeeds = async () => {
     const urls = new Set();

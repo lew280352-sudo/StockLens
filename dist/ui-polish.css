@@ -103,3 +103,5 @@ dialog{background:#fff;box-shadow:0 20px 70px #142f4e33;border:0;padding:24px;ma
 .company-logo.has-icon,.news-card .company-logo.has-icon{font-size:0}
 
 .forecast-card .risk-inline{color:var(--muted);border-color:var(--line);font-size:12px}
+
+.avatar{color:#385678}

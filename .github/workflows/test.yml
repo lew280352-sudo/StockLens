@@ -16,6 +16,15 @@ jobs:
       - run: npm test
       - run: npx playwright install --with-deps chromium
       - run: npm run test:ui
+      - run: npm run test:responsive
+        env:
+          UI_ARTIFACT_DIR: artifacts/responsive
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: responsive-screenshots
+          path: artifacts/responsive
+          if-no-files-found: ignore
       - run: npm run test:research-ui
       - run: npm run test:security-ui
       - run: npm run test:login-ui

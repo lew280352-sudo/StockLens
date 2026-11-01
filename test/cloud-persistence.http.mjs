@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { createApp } from '../server.mjs';
 import {randomBytes} from 'node:crypto';
 import {totpCode} from '../security.mjs';
+import {openDatabase} from '../database.mjs';
 import {createServer} from 'node:http';
 
 test('a delayed credential snapshot cannot create a session after recovery changed the password',async()=>{
@@ -60,7 +61,7 @@ test('cloud account, session and watchlist survive application replacement', asy
   const config = { databasePath: ':memory:', databaseUrl, authToken: 'local-test-only' };
   let server, base;
   async function start() {server = await createApp(config);server.listen(0, '127.0.0.1');await once(server, 'listening');base = `http://127.0.0.1:${server.address().port}`;}
-  async function stop() {if (!server) return;if (server.shutdown) await server.shutdown();else await new Promise((resolve) => server.close(resolve));server = null;}
+  async function stop() {if (!server) return;await server.shutdown();server = null;}
   const credentials = { name: 'Cloud persistence', email: `${randomUUID()}@example.com`, password: 'persist-remotely-test-password' };
   const post = (route, data, cookie) => fetch(base + route, { method: 'POST', headers: { Origin: base, 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie } : {}) }, body: JSON.stringify(data) });
   let cookie;
@@ -78,4 +79,14 @@ test('cloud account, session and watchlist survive application replacement', asy
     if (server && cookie) await post('/api/account/delete', { ...credentials, confirm: credentials.email }, cookie);
     await stop();
   }
+});
+
+test('overlapping cloud startups apply market feed migration once without losing preferences',async()=>{
+ const databaseUrl=process.env.TEST_DATABASE_URL||'http://127.0.0.1:18080';assert.ok(['127.0.0.1','localhost'].includes(new URL(databaseUrl).hostname));
+ const original=await createApp({databaseUrl,authToken:'local-test-only'});original.listen(0,'127.0.0.1');await once(original,'listening');const base=`http://127.0.0.1:${original.address().port}`;
+ const email=`${randomUUID()}@example.com`,password='bootstrap-test-password';
+ await fetch(base+'/api/register',{method:'POST',headers:{Origin:base,'Content-Type':'application/json'},body:JSON.stringify({name:'Bootstrap race',email,password})});await original.shutdown();
+ const started=await Promise.allSettled([createApp({databaseUrl,authToken:'local-test-only',quoteApiKey:'fixture'}),createApp({databaseUrl,authToken:'local-test-only',quoteApiKey:'fixture'})]);
+ try{assert.equal(started.filter(r=>r.status==='fulfilled').length,2,'both replacing instances start successfully');const db=await openDatabase({databaseUrl,authToken:'local-test-only'});try{const row=await db.get('SELECT s.data,s.revision FROM user_state s JOIN users u ON u.id=s.user_id WHERE u.email=?',[email]);assert.equal(row.revision,1);const state=JSON.parse(row.data);assert.deepEqual(state.watchlist,[]);assert.equal(new Set(state.sources.map(s=>s.url)).size,state.sources.length);}finally{await db.close();}}
+ finally{for(const result of started)if(result.status==='fulfilled')await result.value.shutdown();}
 });

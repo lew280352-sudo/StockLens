@@ -52,4 +52,4 @@ try {
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);assert.deepEqual(errors, []);
   await page.screenshot({ path: path.join(artifactDir, 'pwa-mobile.png'), fullPage: true });
   console.log('PASS: manifest/icons, service worker, real feed adapter fixtures, XSS escaping, source/watchlist filtering, privacy migration model, recovery and offline privacy.');
-} finally {await browser?.close();await new Promise((resolve) => server.close(resolve));}
+} finally {await browser?.close();await server.shutdown();}

@@ -4,7 +4,7 @@ import { once } from 'node:events';
 import { createApp } from '../server.mjs';
 
 test('recovery codes rotate, are one-time, revoke sessions and retain news preferences', async (t) => {
-  const server = await createApp({ databasePath: ':memory:' });server.listen(0, '127.0.0.1');await once(server, 'listening');t.after(() => new Promise((resolve) => server.close(resolve)));
+  const server = await createApp({ databasePath: ':memory:' });server.listen(0, '127.0.0.1');await once(server, 'listening');t.after(() => server.shutdown());
   const base = `http://127.0.0.1:${server.address().port}`;
   async function request(route, payload, cookie, method = payload ? 'POST' : 'GET') {
     const r = await fetch(base + route, { method, headers: { Origin: base, ...(payload ? { 'Content-Type': 'application/json' } : {}), ...(cookie ? { Cookie: cookie } : {}) }, body: payload ? JSON.stringify(payload) : undefined });

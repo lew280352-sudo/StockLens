@@ -70,7 +70,7 @@ try {
   });
   for (const user of users.filter((u) => u.page && u.number <= 2)) await user.page.screenshot({ path: path.join(directory, `user-${user.number}.png`), fullPage: true }).catch(() => {});
 } finally {
-  await Promise.allSettled(pendingMetrics);await browser?.close();await new Promise((resolve) => server.close(resolve));
+  await Promise.allSettled(pendingMetrics);await browser?.close();await server.shutdown();
   const elapsedMs = Math.round(performance.now() - started),successfulTimes = requests.filter((r) => r.status < 400 && r.ms >= 0).map((r) => r.ms).sort((a, b) => a - b);
   const percentile = (p) => successfulTimes.length ? Math.round(successfulTimes[Math.min(successfulTimes.length - 1, Math.ceil(successfulTimes.length * p) - 1)]) : null;
   const statuses = {};for (const request of requests) statuses[request.status] = (statuses[request.status] || 0) + 1;

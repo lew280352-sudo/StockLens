@@ -16,7 +16,7 @@ test('expanded US directory serves verified local company icons and market mappi
   assert.equal(companies.find((company) => company.symbol === 'BRK.B')?.icon, null);
 
   const server = await createApp({ databasePath: ':memory:' });server.listen(0, '127.0.0.1');await once(server, 'listening');
-  t.after(() => new Promise((resolve) => server.close(resolve)));
+  t.after(() => server.shutdown());
   const base = `http://127.0.0.1:${server.address().port}`;
   for (const symbol of Object.keys(companyIcons)) {
     const response = await fetch(base + companyIcons[symbol]);

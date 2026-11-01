@@ -33,4 +33,4 @@ try {
   await page.locator('.topbar [data-logout]').click();await page.waitForSelector('#login-form');assert.equal(await page.locator('#main').innerHTML(), '');
   assert.deepEqual(errors, []);
   console.log('PASS: company search, month choice, AI summary, source link, query reset and logout');
-} finally {await browser?.close();await new Promise((resolve) => server.close(resolve));}
+} finally {await browser?.close();await server.shutdown();}
