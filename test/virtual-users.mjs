@@ -9,7 +9,7 @@ import { createApp } from '../server.mjs';
 
 const count = 20,label = process.argv.includes('--baseline') ? 'baseline' : 'verified';
 const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-const directory = path.join(os.tmpdir(), `stocklens-users20-${label}-${stamp}-${process.pid}`);mkdirSync(directory, { recursive: true });
+const directory = process.env.USER_ARTIFACT_DIR || path.join(os.tmpdir(), `stocklens-users20-${label}-${stamp}-${process.pid}`);mkdirSync(directory, { recursive: true });
 const server = await createApp({ databasePath: path.join(directory, 'synthetic-users.sqlite') });
 server.listen(0, '127.0.0.1');await once(server, 'listening');
 const base = `http://127.0.0.1:${server.address().port}`,requests = [],pendingMetrics = [],started = performance.now();
@@ -22,7 +22,15 @@ async function phase(name, fn) {
   for (const result of results) if (result.status === 'rejected') throw result.reason;
   console.log(`${name}: ${users.filter((u) => u.status !== 'failed').length}/${count} users remain successful`);
 }
-async function navigate(user, page) {const selector = user.device === 'mobile' && (page === 'sources' || page === 'alerts') ? `.topbar [data-page=${page}]` : `.sidebar [data-page=${page}]`;await user.page.locator(selector).click();}
+async function navigate(user, destination) {
+  const page=user.page;
+  if(user.device==='mobile'){
+    const primary=page.locator(`.mobile-nav [data-page=${destination}]`);
+    if(await primary.count())await primary.click();
+    else{await page.locator('[data-mobile-more]').click();await page.locator(`#mobile-menu [data-page=${destination}]`).click();}
+  }else await page.locator(`.sidebar [data-page=${destination}]`).click();
+}
+
 async function api(user, route, method = 'GET', payload) {return user.page.evaluate(async ({ route, method, payload }) => {const response = await fetch(route, { method, headers: payload ? { 'Content-Type': 'application/json' } : undefined, body: payload ? JSON.stringify(payload) : undefined });return { status: response.status, data: await response.json() };}, { route, method, payload });}
 async function login(user) {
   const page = user.page;await page.locator('#login-form [name=email]').fill(user.email);await page.locator('#login-form [name=password]').fill(user.password);

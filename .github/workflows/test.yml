@@ -30,6 +30,16 @@ jobs:
       - run: npm run test:login-ui
       - run: npm run test:pwa
       - run: npm run test:users
+        env:
+          USER_ARTIFACT_DIR: artifacts/users
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: virtual-user-results
+          path: |
+            artifacts/users/results.json
+            artifacts/users/*.png
+          if-no-files-found: ignore
   remote-storage:
     runs-on: ubuntu-latest
     timeout-minutes: 10
