@@ -157,9 +157,9 @@ GitHub Actions มี configuration สำหรับ Ubuntu + Node 24 + Chromi
 
 Service worker cache เฉพาะ `/offline.html` และไอคอน ไม่ cache `/api/*`, HTML ที่ Login แล้ว หรือข้อมูลส่วนตัว เปลี่ยนเลข cache version ใน `dist/sw.js` หากเปลี่ยนหน้าที่ precache ไม่ใช้ skipWaiting จึงไม่บังคับเปลี่ยน worker ระหว่างผู้ใช้กรอกฟอร์ม
 
-## Docker (ยังไม่ได้ทดสอบ build บนเครื่องนี้)
+## Docker
 
-ติดตั้ง Docker แล้วรัน `docker compose up -d --build` จากโฟลเดอร์แอป เปิด **http://localhost:4173** (ต้องใช้ hostname ตรง APP_ORIGIN) compose ผูกพอร์ตกับ loopback และเก็บ SQLite ใน named volume `stocklens-data` รันเป็นผู้ใช้ node ที่ไม่ใช่ root
+ติดตั้ง Docker แล้วรัน `docker compose up -d --build` จากโฟลเดอร์แอป เปิด **http://localhost:4173** (ต้องใช้ hostname ตรง APP_ORIGIN) compose ผูกพอร์ตกับ loopback และเก็บ SQLite ใน named volume `stocklens-data` รันเป็นผู้ใช้ node ที่ไม่ใช่ root ค่า API, SMTP, MFA และ Web Push ใน `.env` จะถูกส่งเข้า container ผ่าน `compose.yaml` หากตั้งค่าไว้; หลังแก้ `.env` ให้รัน `docker compose up -d` เพื่อสร้าง container ใหม่
 
 สำรอง volume โดย `docker compose exec stocklens node scripts/backup.mjs` แล้วคัดลอกไฟล์ backup ออกมาจาก `/app/backups` ก่อนลบ container ห้ามใช้ `docker compose down -v` หากยังไม่มี backup เพราะจะลบข้อมูลใน volume
 
