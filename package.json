@@ -22,6 +22,7 @@
     "playwright": "^1.58.2"
   },
   "dependencies": {
+    "@libsql/client": "^0.18.0",
     "fast-xml-parser": "^5.11.2",
     "nodemailer": "^10.1.7",
     "web-push": "^3.6.7"
