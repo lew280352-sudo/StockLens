@@ -18,3 +18,24 @@ jobs:
       - run: npm run test:ui
       - run: npm run test:pwa
       - run: npm run test:users
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      NEWS_ENABLED: "false"
+      FINNHUB_API_KEY: ci-placeholder
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and smoke test Docker Compose
+        run: |
+          docker compose build
+          docker compose up -d
+          trap 'docker compose logs --no-color stocklens; docker compose down -v' EXIT
+          docker compose exec -T stocklens node -e "if (process.env.FINNHUB_API_KEY !== 'ci-placeholder') process.exit(1)"
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:4173/ > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          exit 1
