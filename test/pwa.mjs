@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import { createApp } from '../server.mjs';
+import {companyIcons} from '../dist/company-icons.js';
 import { feeds } from '../feeds.mjs';
 const server = await createApp({ databasePath: ':memory:', quoteApiKey: 'fixture-only', quoteFetcher: async (url) => Response.json(url.endsWith('MSFT') ? { c: 0, t: 0 } : { c: 200, t: Math.floor(Date.now() / 1000) }), aiEnabled: true, aiFetcher: async (url, options) => url.endsWith('/api/tags') ? Response.json({ models: [{ name: 'qwen3:8b' }] }) : Response.json({ message: { content: JSON.stringify(JSON.parse(options.body).format?.properties?.sourceIds ? { answer: 'หัวข้อของ Microsoft กล่าวถึงประกาศทดสอบ', supported: true, sourceIds: [JSON.parse(JSON.parse(options.body).messages[1].content).articles[0].id] } : { title: 'สรุป Microsoft', summary: 'หัวข้อกล่าวถึงประกาศทดสอบจากบริษัท', facts: ['มีประกาศจากบริษัท'], positiveFactors: [], risks: ['ข้อมูลมีเฉพาะหัวข้อ'], unknowns: ['ไม่มีผลกระทบทางการเงิน'], confidence: 'low' }) } }), refreshNews: true, newsFetcher: async (url) => {
     const feed = feeds.find((f) => f.feedUrl === url);
@@ -22,7 +23,7 @@ try {
   await page.locator('[name=name]').fill('PWA Test');await page.locator('[name=email]').fill('pwa@example.com');await page.locator('[name=password]').fill('pwa-original-password');await page.locator('[name=confirm]').fill('pwa-original-password');await page.locator('#register-form [type=submit]').click();await page.waitForSelector('#login-form');
   const code = await page.locator('[aria-label="รหัสกู้คืน"]').inputValue();assert.equal(code.length, 48);
   await page.locator('#login-form [name=password]').fill('pwa-original-password');await page.locator('#login-form [type=submit]').click();await page.waitForSelector('.news-card');
-  assert.equal(await page.locator('.news-card').count(), feeds.length);assert.equal(await page.locator('.news-card img').count(), feeds.length);
+  assert.equal(await page.locator('.news-card').count(), feeds.length);assert.equal(await page.locator('.news-card img').count(), feeds.filter(f=>companyIcons[f.symbol]).length);
   assert.equal(await page.locator('.news-card img').first().evaluate((img) => img.complete && img.naturalWidth > 0), true);
   await page.locator('[data-action=add]').first().click();await page.locator('#following-form [name=symbol]').selectOption('AAPL');await page.locator('#following-form [type=submit]').click();await page.waitForSelector('#modal:not([open])', { state: 'attached' });
   await page.waitForFunction(() => document.querySelector('#quotes-panel')?.textContent.includes('$200.00'));assert.match(await page.locator('#quotes-panel').innerText(), /ไม่เก็บจำนวนหุ้นและต้นทุน/);
@@ -33,7 +34,7 @@ try {
   await page.locator('[data-source-remove=microsoft]').click();await page.locator('[data-source-confirm=microsoft]').click();await page.waitForSelector('[data-add-feed=microsoft]');
   await page.locator('[data-add-feed=microsoft]').click();await page.waitForFunction(() => !document.querySelector('[data-add-feed=microsoft]'));
   const restored = await page.evaluate(() => fetch('/api/news').then((r) => r.json()));assert.ok(restored.items.some((n) => n.symbol === 'MSFT'));
-  await page.locator('.sidebar [data-page=insights]').click();await page.locator('#ai-symbol').selectOption('MSFT');await page.locator('[data-ai-summary]').click();await page.waitForFunction(() => document.querySelector('.ai-trend')?.textContent.includes('สรุป Microsoft'));assert.match(await page.locator('.ai-card').innerText(), /ข้อมูลมีเฉพาะหัวข้อ/);assert.equal(await page.locator('.ai-sources a').count(), 1);
+  await page.locator('[data-mobile-more]').click();await page.locator('#mobile-menu [data-page=insights]').click();await page.locator('#ai-symbol').selectOption('MSFT');await page.locator('[data-ai-summary]').click();await page.waitForFunction(() => document.querySelector('.ai-trend')?.textContent.includes('สรุป Microsoft'));assert.match(await page.locator('.ai-card').innerText(), /ข้อมูลมีเฉพาะหัวข้อ/);assert.equal(await page.locator('.ai-sources a').count(), 1);
   assert.match(await page.locator('.ai-timeline').innerText(), /ข่าวล่าสุดที่ใช้.*AI สรุปเมื่อ/s);
   assert.match(await page.locator('.ai-sources').innerText(), /เผยแพร่.*น\. \(ไทย\)/s);
   await page.locator('#ai-question').fill('ข่าวนี้เกี่ยวกับอะไร?');await page.locator('#ai-question-form button').click();
@@ -41,7 +42,7 @@ try {
   await page.locator('.topbar [data-logout]').click();await page.waitForSelector('#login-form');
   await page.locator('[data-recover]').click();await page.locator('#recover-form [name=email]').fill('pwa@example.com');await page.locator('#recover-form [name=code]').fill(code);await page.locator('#recover-form [name=password]').fill('pwa-new-password');await page.locator('#recover-form [name=confirm]').fill('pwa-new-password');await page.locator('#recover-form [type=submit]').click();await page.waitForSelector('#login-form');assert.notEqual(await page.locator('[aria-label="รหัสกู้คืน"]').inputValue(), code);
   await page.locator('#login-form [name=password]').fill('pwa-new-password');await page.locator('#login-form [type=submit]').click();await page.waitForSelector('body:not(.signed-out)');
-  await page.locator('.sidebar [data-page=following]').click();assert.match(await page.locator('.company-grid').first().innerText(), /AAPL/);assert.doesNotMatch(await page.locator('#main').innerText(), /0\.125001|ต้นทุนเฉลี่ย/);
+  await page.locator('.mobile-nav [data-page=following]').click();assert.match(await page.locator('.company-grid').first().innerText(), /AAPL/);assert.doesNotMatch(await page.locator('#main').innerText(), /0\.125001|ต้นทุนเฉลี่ย/);
   await page.evaluate(async () => {const s = await fetch('/api/session').then((r) => r.json());s.state.watchlist.push('MSFT');const r = await fetch('/api/state', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: s.user.id, revision: s.revision, state: s.state }) });if (!r.ok) throw new Error('prepare second followed company');});
   await page.reload();await page.waitForFunction(() => !quoteBusy && quoteData.items.length === 2);assert.match(await page.locator('#quotes-panel').innerText(), /ยังไม่มีราคา/);assert.match(await page.locator('#quotes-panel').innerText(), /ตรวจสอบได้/);
   const cached = await page.evaluate(async () => {const keys = await caches.keys();return (await Promise.all(keys.map(async (key) => (await (await caches.open(key)).keys()).map((req) => new URL(req.url).pathname)))).flat();});

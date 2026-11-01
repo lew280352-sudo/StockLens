@@ -13,5 +13,5 @@ test('Render uses its assigned HTTPS origin and refuses ephemeral account storag
 });
 
 test('local configuration remains usable without cloud credentials',()=>{
-  assert.deepEqual(runtimeConfig({}),{port:4173,host:'127.0.0.1',publicOrigin:null,databaseUrl:'',authToken:'',trustedProxyHops:0});
+  assert.deepEqual(runtimeConfig({}),{port:4173,host:'127.0.0.1',publicOrigin:null,databaseUrl:'',authToken:'',trustedProxyHops:0,hostingProfile:''});
 });

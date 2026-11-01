@@ -64,8 +64,10 @@ async function passwordHash(password, salt) {return deriveKey(password, salt, 64
 const tokenHash = (token) => createHash('sha256').update(token).digest('hex');
 function tokenFrom(req) {return (req.headers.cookie || '').split(';').map((c) => c.trim()).find((c) => c.startsWith('stocklens_session='))?.slice(18) || '';}
 
-export async function createApp({ databasePath = path.join(root, '.data', 'stocklens.sqlite'), databaseUrl = '', authToken = '', trustedProxyHops = 0, secureCookies = false, publicOrigin = null, refreshNews = false, newsFetcher = fetch, quoteApiKey = '', quoteFetcher = fetch, researchFetcher = fetch, historyApiKey = '', historyFetcher = fetch, aiEnabled = false, aiProvider = 'ollama', aiBaseUrl = 'http://127.0.0.1:11434', aiApiKey = '', aiModel, aiFallbackModel = 'qwen3:8b', aiFetcher = fetch, mfaKeyHex = '', pushPublicKey = '', pushPrivateKey = '', pushSubject = '', pushSender, emailOrigin = '', smtpHost = '', smtpPort = 587, smtpUser = '', smtpPass = '', smtpFrom = '', emailSender, emailLoginEnabled = false } = {}) {
+export async function createApp({ databasePath = path.join(root, '.data', 'stocklens.sqlite'), databaseUrl = '', authToken = '', trustedProxyHops = 0, hostingProfile = '', secureCookies = false, publicOrigin = null, refreshNews = false, newsFetcher = fetch, quoteApiKey = '', quoteFetcher = fetch, researchFetcher = fetch, historyApiKey = '', historyFetcher = fetch, aiEnabled = false, aiProvider = 'ollama', aiBaseUrl = 'http://127.0.0.1:11434', aiApiKey = '', aiModel, aiFallbackModel = 'qwen3:8b', aiFetcher = fetch, mfaKeyHex = '', pushPublicKey = '', pushPrivateKey = '', pushSubject = '', pushSender, emailOrigin = '', smtpHost = '', smtpPort = 587, smtpUser = '', smtpPass = '', smtpFrom = '', emailSender, emailLoginEnabled = false } = {}) {
   if (mfaKeyHex && !/^[a-f0-9]{64}$/i.test(mfaKeyHex)) throw new Error('MFA_ENCRYPTION_KEY must be 64 hex characters');
+  const backgroundSleeps=hostingProfile==='render-free';
+  if(backgroundSleeps){smtpHost='';emailSender=undefined;emailLoginEnabled=false;}
   const mfaKey = mfaKeyHex ? Buffer.from(mfaKeyHex, 'hex') : null;
   if (publicOrigin) {
     let url;try {url = new URL(publicOrigin);} catch {throw new Error('APP_ORIGIN must be an http(s) origin');}
@@ -314,7 +316,7 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
       if (pathname === '/api/security' && req.method === 'GET') {
         const user = await currentUser(req);if (!user) fail(401, 'กรุณาเข้าสู่ระบบ');
         const row = await db.get('SELECT secret FROM user_mfa WHERE user_id=?', [user.id]);
-        return send(res, 200, { mfaEnabled: !!row?.secret, mfaAvailable: !!mfaKey, emailLoginEnabled: loginOtp.enabled, ...(await email.status(user.id)) });
+        return send(res, 200, { hosting:{backgroundSleeps}, mfaEnabled: !!row?.secret, mfaAvailable: !!mfaKey, emailLoginEnabled: loginOtp.enabled, ...(await email.status(user.id)) });
       }
       if (pathname === '/api/email/send-verification' && req.method === 'POST') {
         const user = await currentUser(req);if (!user) fail(401, 'กรุณาเข้าสู่ระบบ');
@@ -330,7 +332,7 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
       }
       if (pathname === '/api/push/status' && req.method === 'GET') {
         const user = await currentUser(req);if (!user) fail(401, 'กรุณาเข้าสู่ระบบ');
-        return send(res, 200, await push.status(user.id));
+        return send(res, 200, {backgroundSleeps,...await push.status(user.id)});
       }
       if (pathname === '/api/push/subscribe' && req.method === 'POST') {
         const user = await currentUser(req);if (!user) fail(401, 'กรุณาเข้าสู่ระบบ');
