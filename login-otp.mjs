@@ -8,10 +8,11 @@ export async function createLoginOtp(db, { enabled = false, smtpHost = '', smtpP
   await db.exec(["CREATE TABLE IF NOT EXISTS login_otp(id TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,code_hash TEXT NOT NULL,expires_at INTEGER NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,created_at INTEGER NOT NULL)"]);
   const transport = enabled && !sender ? nodemailer.createTransport({ host: smtpHost, port: smtpPort, secure: smtpPort === 465, requireTLS: smtpPort !== 465, auth: { user: smtpUser, pass: smtpPass }, connectionTimeout: 10000, socketTimeout: 10000 }) : null;
   const send = sender || ((message) => transport.sendMail(message));
-  async function request(user) {
+  async function request(user,authorize=async()=>{}) {
     if (!enabled) throw new Error('Email login is not configured');
     const id=randomBytes(32).toString('hex'),code=String(randomBytes(4).readUInt32BE()%1000000).padStart(6,'0');
     await db.transaction(async tx=>{
+      await authorize(tx);
       const previous=await tx.get('SELECT created_at FROM login_otp WHERE user_id=? ORDER BY created_at DESC LIMIT 1',[user.id]);
       if(previous&&now()-previous.created_at<60000)throw new Error('Wait before requesting another login code');
       await tx.run('DELETE FROM login_otp WHERE user_id=? OR expires_at<=?',[user.id,now()]);

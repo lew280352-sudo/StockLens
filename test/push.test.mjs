@@ -54,3 +54,14 @@ test('push HTTP endpoints require a session and keep subscriptions account-scope
   assert.equal((await call('/api/push/unsubscribe', { method: 'POST', cookie: b.cookie, body: { endpoint: subscription.endpoint } })).status, 200);
   assert.equal((await call('/api/push/status', { cookie: a.cookie })).data.subscriptions, 1);
 });
+
+for(const kind of ['news','test'])test(`queued ${kind} Push does not start another device send after account deletion`,async()=>{
+ const db=await openDatabase({databasePath:':memory:'});await db.exec(['CREATE TABLE users(id TEXT PRIMARY KEY)','CREATE TABLE user_state(user_id TEXT PRIMARY KEY,data TEXT NOT NULL)']);await db.run('INSERT INTO users VALUES(?)',['queued']);await db.run('INSERT INTO user_state VALUES(?,?)',['queued',JSON.stringify({watchlist:['AAPL'],alerts:{news:true,scope:'watchlist'},sources:[{url:'https://www.apple.com/newsroom/',enabled:true}]})]);
+ let release,entered;const gate=new Promise(resolve=>release=resolve),ready=new Promise(resolve=>entered=resolve),sent=[];
+ const service=await createPushService(db,{publicKey:'fixture',privateKey:'fixture',subject:'mailto:fixture@example.com',now:()=>1000,sender:async subscription=>{sent.push(subscription.endpoint);if(sent.length===1){entered();await gate;}}});
+ try{
+  for(const suffix of ['first','second'])await service.subscribe('queued',{...subscription,endpoint:subscription.endpoint+'-'+suffix});
+  const pending=kind==='test'?service.test('queued'):service.deliver({sources:[{id:'apple',url:'https://www.apple.com/newsroom/'}],items:[{feedId:'apple',symbol:'AAPL',publishedAt:new Date(2000).toISOString(),stale:false}]});
+  await ready;await db.run('DELETE FROM users WHERE id=?',['queued']);release();await pending;assert.equal(sent.length,1);
+ }finally{release();await db.close();}
+});

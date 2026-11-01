@@ -7,6 +7,8 @@ const stock=symbol=>stocks.find(s=>s.symbol===symbol)||{symbol,name:symbol,thai:
 function companyLogo(symbol){const company=stock(symbol),label=escapeHtml(symbol.slice(0,3));return `<span class="company-logo${company.icon?' has-icon':''}" role="img" aria-label="${escapeHtml(company.name)} (${escapeHtml(symbol)})" title="${escapeHtml(company.name)}">${label}${company.icon?`<img src="${escapeHtml(company.icon)}" alt="" loading="lazy" decoding="async">`:''}</span>`;}
 document.addEventListener('error',event=>{if(event.target.matches?.('.company-logo img')){event.target.parentElement.classList.remove('has-icon');event.target.remove();}},true);
 const defaults={watchlist:[],alerts:{daily:true,news:true,trend:true,time:'08:00',scope:'watchlist'},sources:[]};
+let authEpoch=0;
+function sameSession(epoch,userId){return epoch===authEpoch&&currentUser?.id===userId;}
 let state=structuredClone(defaults),committedState=structuredClone(defaults),currentUser=null,stateRevision=0,isSaving=false,lastSaveError='';
 let page='overview',newsFilter='all',selectedStock='AAPL',query='',toastTimer;
 let newsData={items:[],sources:[]},newsLoading=false,newsError='',newsEpoch=0;
@@ -22,11 +24,13 @@ async function loadForecast(symbol=selectedStock){
 }
 async function save(){
   if(isSaving||!currentUser)return false;
-  isSaving=true;lastSaveError='';
+  const epoch=authEpoch,userId=currentUser.id;isSaving=true;lastSaveError='';
   try{
     const result=await api('/api/state',{method:'PUT',body:{state,userId:currentUser.id,revision:stateRevision}});
+    if(!sameSession(epoch,userId))return false;
     const watchlistChanged=JSON.stringify(committedState.watchlist)!==JSON.stringify(result.state.watchlist);state=result.state;stateRevision=result.revision;committedState=structuredClone(state);if(watchlistChanged)loadQuotes();return true;
   }catch(error){
+    if(!sameSession(epoch,userId))return false;
     lastSaveError=error.message;state=structuredClone(committedState);
     if(error.status===401)showSignedOut('login');
     if(error.status===409){
@@ -127,7 +131,7 @@ document.addEventListener('submit',async e=>{
  if(f.id==='ai-question-form'){e.preventDefault();const question=f.elements.question.value.trim();if(question.length>=5&&question.length<=300)askAI(question);return;}
  if(f.id==='following-form'){e.preventDefault();const symbol=f.elements.symbol.value;if(!state.watchlist.includes(symbol))state.watchlist.push(symbol);const button=f.querySelector('[type=submit]');button.disabled=true;const ok=await save();if(ok){selectedStock=symbol;$('#modal').close();render();toast(`ติดตามข่าว ${symbol} แล้ว`);}else if(f.isConnected){f.querySelector('.form-error').textContent=lastSaveError;button.disabled=false;}}
  if(f.id==='alert-form'){e.preventDefault();state.alerts={daily:f.elements.daily.checked,news:f.elements.news.checked,trend:f.elements.trend.checked,time:f.elements.time.value,scope:f.elements.scope.value};if(await save()){render();toast('บันทึกการตั้งค่าแล้ว');}}
- if(f.id==='new-recovery-form'){e.preventDefault();const button=f.querySelector('button');if(button.disabled)return;button.disabled=true;try{const result=await api('/api/recovery-code',{method:'POST',body:{password:f.elements.password.value}});if(currentUser)openModal('เก็บรหัสกู้คืนใหม่',recoveryNotice(result.recoveryCode));}catch(error){f.querySelector('.form-error').textContent=error.message;}finally{button.disabled=false;}}
+ if(f.id==='new-recovery-form'){e.preventDefault();const epoch=authEpoch,userId=currentUser.id;const button=f.querySelector('button');if(button.disabled)return;button.disabled=true;try{const result=await api('/api/recovery-code',{method:'POST',body:{password:f.elements.password.value}});if(sameSession(epoch,userId)&&f.isConnected&&$('#modal').open)openModal('เก็บรหัสกู้คืนใหม่',recoveryNotice(result.recoveryCode));}catch(error){if(sameSession(epoch,userId)&&f.isConnected){if(error.status===401)showSignedOut('login');else f.querySelector('.form-error').textContent=error.message;}}finally{if(f.isConnected)button.disabled=false;}}
 });
 document.addEventListener('keydown',e=>{if(currentUser&&e.key==='/'&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)&&!$('#modal').open){e.preventDefault();navigate('search');$('#company-query').focus();}});
 document.querySelectorAll('[data-icon]').forEach(el=>el.innerHTML=icon(el.dataset.icon));

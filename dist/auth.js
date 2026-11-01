@@ -20,6 +20,7 @@ function showLoginChallenge(result,email,password){
   $('#login-challenge-form [name=code]').focus();
 }
 function showSignedOut(mode='register',message='',email=''){
+  authEpoch++;
   clearTimeout(toastTimer);$('#toast').textContent='';$('#toast').classList.remove('show');
   currentUser=null;stateRevision=0;state=structuredClone(defaults);committedState=structuredClone(defaults);query='';newsFilter='all';selectedStock='AAPL';resetNews();resetQuotes();resetAI();resetForecast();resetResearch();
   if($('#mobile-menu').open)$('#mobile-menu').close();if($('#modal').open)$('#modal').close();$('#modal-body').innerHTML='';$('#main').innerHTML='';
@@ -27,6 +28,7 @@ function showSignedOut(mode='register',message='',email=''){
   document.body.classList.add('signed-out');history.replaceState(null,'','#'+mode);authForm(mode,message,email);window.scrollTo(0,0);
 }
 function enterApp(result){
+  authEpoch++;
   pendingLogin=null;
   currentUser=result.user;state=result.state;newsFilter=state.watchlist.length?'watchlist':'all';stateRevision=result.revision;committedState=structuredClone(state);selectedStock=state.watchlist.find(symbol=>stocks.some(s=>s.symbol===symbol))||'AAPL';resetNews();resetQuotes();resetAI();resetForecast();resetResearch();
   document.querySelectorAll('[data-user-name]').forEach(el=>el.textContent=currentUser.name);

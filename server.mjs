@@ -412,15 +412,19 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
         const mfaSecret=(await db.get('SELECT secret FROM user_mfa WHERE user_id=?',[user.id]))?.secret||null;
         if(mfaSecret){
           if (!input.totp) return send(res, 202, { factor: 'authenticator' });
-          await checkMfa(user.id, input.totp, { consume: true });
         } else if (loginOtp.enabled) {
-          try {return send(res, 202, await loginOtp.request(user));}
-          catch (error) {fail(error.message === 'Wait before requesting another login code' ? 429 : 503, 'ส่งรหัสเข้าสู่อีเมลไม่ได้ กรุณาตรวจการตั้งค่า SMTP หรือรอ 1 นาที');}
+          try {return send(res, 202, await loginOtp.request(user,async tx=>{
+            const fresh=await tx.get('SELECT password_hash FROM users WHERE id=?',[user.id]);
+            const factor=(await tx.get('SELECT secret FROM user_mfa WHERE user_id=?',[user.id]))?.secret||null;
+            if(!fresh||fresh.password_hash!==user.password_hash||factor!==mfaSecret)fail(401,'ข้อมูลยืนยันตัวตนเปลี่ยนแล้ว กรุณาเข้าสู่ระบบใหม่');
+          }));}
+          catch (error) {if(error.status===401)throw error;fail(error.message === 'Wait before requesting another login code' ? 429 : 503, 'ส่งรหัสเข้าสู่อีเมลไม่ได้ กรุณาตรวจการตั้งค่า SMTP หรือรอ 1 นาที');}
         }
         const token=await db.transaction(async tx=>{
           const fresh=await tx.get('SELECT password_hash FROM users WHERE id=?',[user.id]);
           const factor=(await tx.get('SELECT secret FROM user_mfa WHERE user_id=?',[user.id]))?.secret||null;
           if(!fresh||fresh.password_hash!==user.password_hash||factor!==mfaSecret)fail(401,'ข้อมูลยืนยันตัวตนเปลี่ยนแล้ว กรุณาเข้าสู่ระบบใหม่');
+          if(mfaSecret)await checkMfa(user.id,input.totp,{consume:true,connection:tx});
           return newSession(tx,req,user.id);
         });
         res.setHeader('Set-Cookie', cookie(token, SESSION_AGE / 1000, req));

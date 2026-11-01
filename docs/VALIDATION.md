@@ -4,7 +4,7 @@ This branch is prepared for review. No production URL has been verified and no l
 
 ## Automated checks
 
-- Native SQLite unit/API coverage: async storage, rollback, account separation, revisions, password recovery, TOTP/OTP replay, persistent throttles and untrusted forwarded headers.
+- Native SQLite unit/API coverage (63 passing tests): async storage, rollback, account separation, revisions, password recovery, TOTP/OTP replay, persistent throttles and untrusted forwarded headers.
 - Real official @libsql/client HTTP driver against isolated libSQL containers: commit/rollback/reconnect, app restart retaining login/watchlist, revision races, credential changes during delayed login, concurrent MFA enrollment and overlapping startup migrations.
 - Import fixture checked against an isolated empty remote destination: unchanged password hashes, MFA key validation, watchlist conversion without holdings, revision preservation, discarded sessions/pending enrollment, occupied-target refusal and rollback.
 - Real HTTP 401 database startup fails closed; no local database file is created. No production credentials are used in tests.
@@ -29,3 +29,8 @@ Impeccable detection was run once on the final UI targets. Its avatar contrast f
 ## Account-dependent cutover
 
 Follow [FREE_CLOUD.md](FREE_CLOUD.md). Locate the original .data/stocklens.sqlite or a verified backup on the machine/service that ran the old app; keep the original MFA encryption and VAPID keys in a secret channel. Connect Render and provision a matching Turso Free libSQL database. Import before first production startup, then verify login/watchlist on HTTPS and after redeployment. Do not create an empty replacement account database or publish before the migration can be checked.
+
+
+## Final fresh-review corrections
+
+One independent whole-branch review found five important issues. Regression tests now cover stale password-to-email-challenge issuance after recovery, rollback of TOTP consumption when session creation fails, MFA/recovery secrets returning after dismissal/logout/account switch, and queued news/test Push after account deletion. The cutover runbook now freezes the source before the final backup and defines safe rollback before and after destination writes. An already-dispatched Push cannot be recalled.

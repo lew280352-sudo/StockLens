@@ -8,7 +8,8 @@ import {totpCode} from '../security.mjs';
 import {openDatabase} from '../database.mjs';
 import {createServer} from 'node:http';
 
-test('a delayed credential snapshot cannot create a session after recovery changed the password',async()=>{
+for(const emailLoginEnabled of [false,true])test('a delayed credential snapshot cannot issue '+(emailLoginEnabled?'an email challenge':'a session')+' after recovery changed the password',async()=>{
+  const sent=[],mailConfig=emailLoginEnabled?{emailLoginEnabled:true,smtpHost:'smtp.test',smtpUser:'test',smtpPass:'fixture',smtpFrom:'test@example.com',emailSender:async message=>sent.push(message)}:{};
   const upstream=process.env.TEST_DATABASE_URL||'http://127.0.0.1:18080';
   assert.ok(['127.0.0.1','localhost'].includes(new URL(upstream).hostname));
   let armed=false,release,entered;
@@ -23,7 +24,7 @@ test('a delayed credential snapshot cannot create a session after recovery chang
     }catch{res.writeHead(502);res.end();}
   });
   proxy.listen(0,'127.0.0.1');await once(proxy,'listening');
-  const server=await createApp({databasePath:':memory:',databaseUrl:`http://127.0.0.1:${proxy.address().port}`,authToken:'local-test-only'});
+  const server=await createApp({databasePath:':memory:',databaseUrl:`http://127.0.0.1:${proxy.address().port}`,authToken:'local-test-only',...mailConfig});
   server.listen(0,'127.0.0.1');await once(server,'listening');const base=`http://127.0.0.1:${server.address().port}`;
   const recoveryServer=await createApp({databasePath:':memory:',databaseUrl:upstream,authToken:'local-test-only'});
   recoveryServer.listen(0,'127.0.0.1');await once(recoveryServer,'listening');const recoveryBase=`http://127.0.0.1:${recoveryServer.address().port}`;
@@ -34,7 +35,8 @@ test('a delayed credential snapshot cannot create a session after recovery chang
     const pending=post('/api/login',account);await ready;
     assert.equal((await fetch(recoveryBase+'/api/recover',{method:'POST',headers:{Origin:recoveryBase,'Content-Type':'application/json'},body:JSON.stringify({email:account.email,code:created.recoveryCode,password:'new-credential-test-password'})})).status,200);
     release();const rejected=await pending;assert.equal(rejected.status,401);assert.equal(rejected.headers.get('set-cookie'),null);
-    assert.equal((await post('/api/login',{...account,password:'new-credential-test-password'})).status,200);
+    const fresh=await post('/api/login',{...account,password:'new-credential-test-password'});assert.equal(fresh.status,emailLoginEnabled?202:200);
+    if(emailLoginEnabled){const challenge=await fresh.json(),code=sent.at(-1).text.match(/\b\d{6}\b/)[0];assert.equal((await post('/api/login/verify',{challengeId:challenge.challengeId,code})).status,200);}
   }finally{release();await server.shutdown();await recoveryServer.shutdown();await new Promise(resolve=>proxy.close(resolve));}
 });
 

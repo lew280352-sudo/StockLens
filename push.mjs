@@ -37,7 +37,7 @@ export async function createPushService(db, { publicKey = '', privateKey = '', s
       await sender({ endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } }, JSON.stringify(payload), { vapidDetails, TTL: 3600, timeout: 10000 });
       return true;
     } catch (error) {
-      if (error.statusCode === 404 || error.statusCode === 410) await db.run('DELETE FROM push_subscriptions WHERE id=?', [row.id]);
+      if (error.statusCode === 404 || error.statusCode === 410) await db.run('DELETE FROM push_subscriptions WHERE id=? AND user_id=? AND p256dh=? AND auth=?', [row.id,row.user_id,row.p256dh,row.auth]);
       return false;
     }
   }
@@ -45,14 +45,19 @@ export async function createPushService(db, { publicKey = '', privateKey = '', s
     if (!configured) throw new Error('Push is not configured');
     const rows = await db.all('SELECT * FROM push_subscriptions WHERE user_id=?', [userId]);
     let sent = 0;
-    for (const row of rows) if (await send(row, { title: 'StockLens', body: 'ทดสอบการแจ้งเตือนสำเร็จ', url: '/' })) sent++;
+    for(const reference of rows){
+      const row=await db.get('SELECT p.* FROM push_subscriptions p JOIN users u ON u.id=p.user_id WHERE p.id=? AND p.user_id=?',[reference.id,reference.user_id]);
+      if(row&&await send(row,{title:'StockLens',body:'ทดสอบการแจ้งเตือนสำเร็จ',url:'/'}))sent++;
+    }
     return { sent, total: rows.length };
   }
   async function deliver(snapshot) {
     if (!configured) return { sent: 0 };
-    const rows = await db.all('SELECT p.*,s.data AS state FROM push_subscriptions p JOIN user_state s ON s.user_id=p.user_id', []);
+    const rows=await db.all('SELECT id,user_id FROM push_subscriptions',[]);
     let sent = 0;
-    for (const row of rows) {
+    for (const reference of rows) {
+      const row=await db.get('SELECT p.*,s.data AS state FROM push_subscriptions p JOIN users u ON u.id=p.user_id JOIN user_state s ON s.user_id=p.user_id WHERE p.id=? AND p.user_id=?',[reference.id,reference.user_id]);
+      if(!row)continue;
       let state;try {state = JSON.parse(row.state);} catch {continue;}
       if (!state.alerts?.news) continue;
       const urls = new Set((state.sources || []).filter((source) => source.enabled).map((source) => source.url.replace(/\/$/, '')));
@@ -60,7 +65,7 @@ export async function createPushService(db, { publicKey = '', privateKey = '', s
       const fresh = snapshot.items.filter((item) => active.has(item.feedId) && !item.stale && Date.parse(item.publishedAt) > row.last_sent_at && (state.alerts.scope === 'all' || state.watchlist.includes(item.symbol)));
       if (!fresh.length) continue;
       if (await send(row, { title: 'StockLens', body: `มีข่าวใหม่ ${fresh.length} เรื่องจากแหล่งที่ติดตาม`, url: '/' })) {
-        await db.run('UPDATE push_subscriptions SET last_sent_at=? WHERE id=?', [now(), row.id]);sent++;
+        await db.run('UPDATE push_subscriptions SET last_sent_at=? WHERE id=? AND user_id=? AND p256dh=? AND auth=?', [now(),row.id,row.user_id,row.p256dh,row.auth]);sent++;
       }
     }
     return { sent };

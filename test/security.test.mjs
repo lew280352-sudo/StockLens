@@ -1,3 +1,7 @@
+import {mkdtempSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
+import {DatabaseSync} from 'node:sqlite';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
@@ -59,4 +63,22 @@ test('deleting an account requires reauthentication and revokes all sessions', a
   assert.equal((await call('/api/session', { cookie: first.cookie })).data.user, null);
   assert.equal((await call('/api/session', { cookie: second.cookie })).data.user, null);
   assert.equal((await call('/api/login', { method: 'POST', body: account })).status, 401);
+});
+
+
+test('a failed session commit rolls back TOTP consumption so the same valid code can retry',async()=>{
+ const directory=mkdtempSync(path.join(tmpdir(),'stocklens-totp-rollback-')),file=path.join(directory,'accounts.sqlite');
+ const server=await createApp({databasePath:file,mfaKeyHex:randomBytes(32).toString('hex')});server.listen(0,'127.0.0.1');await once(server,'listening');const base=`http://127.0.0.1:${server.address().port}`,db=new DatabaseSync(file);
+ const account={name:'Rollback test',email:'rollback@example.com',password:'rollback-test-password'};
+ const post=(route,body,cookie='')=>fetch(base+route,{method:'POST',headers:{Origin:base,'Content-Type':'application/json',Cookie:cookie},body:JSON.stringify(body)});
+ try{
+  await post('/api/register',account);const login=await post('/api/login',account),cookie=login.headers.get('set-cookie').split(';')[0];
+  const setup=await(await post('/api/mfa/setup',{password:account.password},cookie)).json(),step=Math.floor(Date.now()/30000);
+  assert.equal((await post('/api/mfa/enable',{code:totpCode(setup.secret,step)},cookie)).status,200);
+  await post('/api/logout',{},cookie);const before=db.prepare('SELECT last_step FROM user_mfa').get().last_step;
+  db.exec("CREATE TRIGGER reject_session BEFORE INSERT ON sessions BEGIN SELECT RAISE(ABORT,'injected failure'); END");
+  const code=totpCode(setup.secret,step+1);assert.equal((await post('/api/login',{...account,totp:code})).status,500);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM sessions').get().n,0);assert.equal(db.prepare('SELECT last_step FROM user_mfa').get().last_step,before);
+  db.exec('DROP TRIGGER reject_session');assert.equal((await post('/api/login',{...account,totp:code})).status,200);
+ }finally{await server.shutdown();db.close();rmSync(directory,{recursive:true});}
 });

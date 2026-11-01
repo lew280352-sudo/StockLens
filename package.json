@@ -11,7 +11,7 @@
     "test": "node --test test/*.test.mjs",
     "test:ui": "node test/browser.mjs",
     "test:research-ui": "node test/research-browser.mjs",
-    "test:security-ui": "node test/security-browser.mjs",
+    "test:security-ui": "node test/security-browser.mjs && node test/security-race-browser.mjs",
     "test:login-ui": "node test/login-otp-browser.mjs",
     "test:users": "node test/virtual-users.mjs",
     "test:pwa": "node test/pwa.mjs",
