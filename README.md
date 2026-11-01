@@ -73,8 +73,10 @@ Windows ใช้ Edge ที่ติดตั้งไว้; Linux/macOS ร�
 
 ## นำขึ้นออนไลน์
 
-เปิดทดสอบจากมือถือภายนอกได้ชั่วคราวด้วย Cloudflare Quick Tunnel แบบ HTTPS และ OTP ทางอีเมล ลิงก์ปัจจุบันกับ PID อยู่ใน `.data/mobile-preview.json` บนเครื่องนี้ ลิงก์เปลี่ยนเมื่อเริ่ม tunnel ใหม่และใช้ไม่ได้เมื่อคอมหรือ tunnel หยุด ยังไม่มีโฮสต์ถาวรหรือบัญชีบริการเสียเงิน ดู [วิธีใช้และข้อจำกัด](docs/OPERATIONS.md)
+ทางเลือกที่เตรียมสำหรับใช้งานโดยไม่เปิดคอมค้างไว้คือ [Render Free + Turso Free](docs/FREE_CLOUD.md) มีเครื่องมือย้ายบัญชี/รายการติดตามเดิม ต้องหา backup ต้นทางและย้ายก่อนเปิดบริการจริง ยังไม่มี URL ที่ตรวจยืนยันว่าออนไลน์แล้ว
 
-GitHub เก็บซอร์สโค้ดเท่านั้น GitHub Pages รัน backend นี้ไม่ได้ หากต้องการ URL ถาวรต้องมีโฮสต์ Node.js 24+ หรือ Docker แบบ single instance, persistent disk และ HTTPS โดยตั้ง `APP_ORIGIN` ให้ตรง URL จริง
+การใช้ส่วนตัวจากมือถือนอกบ้านแบบ HTTPS สามารถตั้ง [Tailscale Serve](docs/PRIVATE_ACCESS.md) บนคอมและมือถือด้วยบัญชี Tailscale ส่วนตัวฟรี URL จะคงที่ภายใน tailnet แต่คอมและ StockLens ต้องเปิดอยู่ เครื่องนี้ยังไม่ได้ติดตั้ง/ลงชื่อเข้าใช้ Tailscale ส่วน Cloudflare Quick Tunnel เป็นทางเลือกชั่วคราวสำหรับทดสอบเท่านั้น ลิงก์เก่าใน `.data/mobile-preview.json` หมดอายุแล้ว ดู [วิธีใช้และข้อจำกัด](docs/OPERATIONS.md)
+
+GitHub เก็บซอร์สโค้ดเท่านั้น GitHub Pages รัน backend นี้ไม่ได้ หากต้องการ URL ถาวรต้องมีโฮสต์ Node.js 24+ หรือ Docker แบบ single instance, ฐานข้อมูลถาวรในดิสก์หรือ Turso และ HTTPS โดยตั้ง `APP_ORIGIN` ให้ตรง URL จริง
 
 ที่มาของข้อกำหนดการติดตั้ง: [MDN — Making PWAs installable](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Making_PWAs_installable)

@@ -84,7 +84,7 @@ JSON จาก `/api/export` เป็นข้อมูลเฉพาะบั
 
 ## เตรียม deploy
 
-เวอร์ชันนี้มี HTTPS ชั่วคราวสำหรับทดสอบมือถือผ่าน Cloudflare Quick Tunnel แต่ยังไม่ได้ deploy บนโฮสต์ถาวร GitHub Pages/static hosting ไม่รองรับ `node:sqlite` และ API ให้เลือก Node.js host แบบ single instance พร้อมพื้นที่เก็บไฟล์ถาวร
+เวอร์ชันนี้ยังไม่ได้ deploy บนโฮสต์ถาวร สำหรับการใช้ส่วนตัวฟรีให้ตั้ง [Tailscale Serve](PRIVATE_ACCESS.md) เพื่อเข้าจากมือถือผ่าน HTTPS ภายใน tailnet; เครื่องนี้ยังไม่มี Tailscale จึงต้องติดตั้งและ Login ก่อน ส่วน Cloudflare Quick Tunnel ใช้ทดสอบชั่วคราวเท่านั้น GitHub Pages/static hosting ไม่รองรับ `node:sqlite` และ API หากเปิดให้คนทั่วไปใช้ ให้เลือก Node.js host แบบ single instance พร้อมพื้นที่เก็บไฟล์ถาวร
 
 ตัวอย่าง environment สำหรับ runtime หลัง reverse proxy:
 
@@ -101,9 +101,9 @@ DATABASE_PATH=/persistent-data/stocklens.sqlite
 
 ### HTTPS ชั่วคราวบนเครื่องพัฒนา
 
-เครื่องนี้ใช้ `cloudflared` รุ่นที่ตรวจลายเซ็นแล้วใน `.data/bin/cloudflared.exe` เชื่อม `127.0.0.1:4173` ไปยัง Quick Tunnel พร้อม `--allowed-mail` เพื่อให้ Cloudflare ส่งรหัส OTP ไปเฉพาะอีเมลที่อนุญาต คอมยังเก็บ SQLite และ API keys ไว้ในเครื่อง ลิงก์และ PID ปัจจุบันอยู่ใน `.data/mobile-preview.json` ซึ่ง Git ไม่ติดตาม และเซิร์ฟเวอร์ต้องเริ่มด้วย `APP_ORIGIN` ที่ตรงกับลิงก์ HTTPS เพื่อให้ Host/Origin checks และ Secure cookie ทำงาน การเปิดหน้าเว็บจากภายนอกต้องผ่าน OTP ก่อน แล้วจึง Login ด้วยบัญชี StockLens
+เครื่องนี้มี `cloudflared` รุ่นที่ตรวจลายเซ็นแล้วใน `.data/bin/cloudflared.exe` เคยใช้เชื่อม `127.0.0.1:4173` ไปยัง Quick Tunnel พร้อม `--allowed-mail` เพื่อให้ Cloudflare ส่งรหัส OTP ไปเฉพาะอีเมลที่อนุญาต คอมยังเก็บ SQLite และ API keys ไว้ในเครื่อง ลิงก์เก่าใน `.data/mobile-preview.json` หมดอายุแล้ว และไม่มี Quick Tunnel เปิดอยู่ เซิร์ฟเวอร์ต้องเริ่มด้วย `APP_ORIGIN` ที่ตรงกับลิงก์ HTTPS เพื่อให้ Host/Origin checks และ Secure cookie ทำงาน
 
-ลิงก์นี้หยุดทันทีเมื่อ `cloudflared` หยุด และชื่อโฮสต์เปลี่ยนทุกครั้งที่เริ่มใหม่ เครื่องต้องเปิดและเชื่อมอินเทอร์เน็ตอยู่ตลอด ไม่มี uptime guarantee และไม่ใช่ระบบ production ตาม [เอกสาร Quick Tunnels ของ Cloudflare](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/) การทดสอบจากเครื่องนี้ยืนยันว่า URL ส่งผู้ไม่ผ่าน OTP ไป `login.trycloudflare.com` และ StockLens ออก Secure cookie ภายใต้ hostname ใหม่; ผู้ใช้ต้องตรวจการรับ OTP และการใช้งานบนมือถือจริงเพิ่มเติม
+Quick Tunnel หยุดทันทีเมื่อ `cloudflared` หยุด และชื่อโฮสต์เปลี่ยนทุกครั้งที่เริ่มใหม่ เครื่องต้องเปิดและเชื่อมอินเทอร์เน็ตอยู่ตลอด ไม่มี uptime guarantee และไม่ใช่ระบบ production ตาม [เอกสาร Quick Tunnels ของ Cloudflare](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/) สำหรับการใช้ส่วนตัวที่ต้องการ URL คงที่ในเครือข่ายส่วนตัว ให้ใช้ [Tailscale Serve](PRIVATE_ACCESS.md)
 
 ## API ที่มีอยู่
 
