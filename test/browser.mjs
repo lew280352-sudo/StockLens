@@ -4,6 +4,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
+import {companyIcons} from '../dist/company-icons.js';
 import { createApp } from '../server.mjs';
 
 const server = await createApp({ databasePath: ':memory:' });server.listen(0, '127.0.0.1');await once(server, 'listening');
@@ -35,7 +36,11 @@ try {
   await page.locator('.source-entry').last().locator('.remove').click();await page.locator('[data-source-confirm]').click();await page.waitForFunction(() => document.querySelectorAll('.source-entry').length === 4);
   await page.locator('.sidebar [data-page=search]').click();
   assert.equal(await page.locator('.company-card').count(), 36);
-  assert.equal(await page.locator('.company-card img').count(), 33);
+  assert.equal(await page.locator('.company-card img').count(), Object.keys(companyIcons).length);
+  for(const symbol of ['MSFT','BRK.B'])assert.ok(await page.getByRole('img',{name:new RegExp(symbol.replace('.','\\.'))}).count(),symbol+' has an accessible ticker fallback');
+  await page.locator('.company-card').first().locator('img').evaluate(img=>img.dispatchEvent(new Event('error')));
+  assert.equal(await page.locator('.company-card').first().locator('img').count(),0);
+  assert.match(await page.locator('.company-card').first().getByRole('img').getAttribute('aria-label'),/Apple/);
   await page.screenshot({ path: path.join(artifactDir, 'search-desktop.png') });
   await page.locator('#company-query').fill('PTT');assert.equal(await page.locator('.company-card').count(), 0);
   const newsSearch = await page.locator('#web-news-actions a').first().getAttribute('href');

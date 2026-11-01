@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="theme.css"><link rel="stylesheet" href="logo.css"><link rel="stylesheet" href="features.css"><link rel="stylesheet" href="ui-polish.css">
-  <script src="app.js" defer></script><script src="research-ui.js" defer></script><script src="quotes-ui.js" defer></script><script src="auth.js" defer></script><script src="security-ui.js" defer></script><script src="push-ui.js" defer></script><script src="pwa.js" defer></script>
+  <script src="icons.js" defer></script><script src="app.js" defer></script><script src="research-ui.js" defer></script><script src="quotes-ui.js" defer></script><script src="auth.js" defer></script><script src="security-ui.js" defer></script><script src="push-ui.js" defer></script><script src="pwa.js" defer></script>
 </head>
 <body class="signed-out">
   <p id="offline-status" class="offline-status" role="status" hidden>ออฟไลน์ — บันทึกข้อมูลและโหลดข่าวไม่ได้จนกว่าจะเชื่อมต่ออีกครั้ง</p>
@@ -19,7 +19,7 @@
   </section>
   <aside class="sidebar">
     <a class="brand" href="#overview"><span class="brand-icon">s<span>l</span></span>stocklens<span class="brand-dot">.</span></a>
-    <div class="workspace"><span class="workspace-logo">N</span><div>พื้นที่ข่าวของฉัน<small>News preferences</small></div><span class="workspace-arrow">⌄</span></div>
+    <div class="workspace"><span class="workspace-logo">N</span><div>พื้นที่ข่าวของฉัน<small>News preferences</small></div><span class="workspace-arrow" data-icon="chevron"></span></div>
     <div class="nav-label">WORKSPACE</div>
     <nav aria-label="เมนูหลัก">
       <button data-page="overview" class="nav active"><span data-icon="grid"></span>ภาพรวม</button>
@@ -31,9 +31,9 @@
     <div class="nav-label bottom-label">PREFERENCES</div>
     <button data-page="alerts" class="nav"><span data-icon="bell"></span>การแจ้งเตือน</button>
     <button data-page="sources" class="nav"><span data-icon="layers"></span>แหล่งข้อมูล</button>
-    <div class="sidebar-note"><span data-icon="spark"></span><h4>ข่าวมากมาย ภาพเดียวที่ชัดขึ้น</h4><p>เชื่อมเรื่องราวของบริษัท<br>เข้ากับหุ้นที่คุณติดตาม</p><span>YOUR DAILY INVESTING COMPANION ↗</span></div>
+    <div class="sidebar-note"><span data-icon="spark"></span><h4>ข่าวมากมาย ภาพเดียวที่ชัดขึ้น</h4><p>เชื่อมเรื่องราวของบริษัท<br>เข้ากับหุ้นที่คุณติดตาม</p><span>YOUR DAILY INVESTING COMPANION</span></div>
     <div class="profile"><span class="avatar" data-user-avatar>L</span><div class="profile-text"><span data-user-name>บัญชีของฉัน</span><small data-user-email></small></div><span class="online-dot"></span></div>
-    <button class="nav logout-button" data-logout><span aria-hidden="true">↪</span>ออกจากระบบ</button>
+    <button class="nav logout-button" data-logout><span data-icon="logout"></span>ออกจากระบบ</button>
     <a class="export-link" href="/api/export" download>ดาวน์โหลดข้อมูลบัญชี</a>
   </aside>
   <div class="app">
@@ -41,6 +41,6 @@
     <main id="main"></main>
     <footer class="risk-footer"><span data-icon="shield"></span><span><b>AI อาจสรุปผิดพลาด</b> ควรอ่านต้นฉบับ · เก็บเฉพาะบริษัทและแหล่งข่าวที่เลือก · ไม่เก็บข้อมูลพอร์ต</span><span class="footer-mark">STOCKLENS / US</span></footer>
   </div>
-  <dialog id="modal"><div class="dialog-heading"><h2 id="modal-title"></h2><button id="close-modal" class="icon-button" aria-label="ปิด">✕</button></div><div id="modal-body"></div></dialog>
+  <dialog id="modal"><div class="dialog-heading"><h2 id="modal-title"></h2><button id="close-modal" class="icon-button" aria-label="ปิด"><span data-icon="close"></span></button></div><div id="modal-body"></div></dialog>
   <div id="toast" role="status" aria-live="polite"></div>
 </body></html>

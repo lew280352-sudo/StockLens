@@ -1,5 +1,5 @@
 let authMode='register',authBusy=false,pendingLogin=null;
-const passwordToggleIcon=visible=>`<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="2.5"/>${visible?'<path d="M3 3l18 18"/>':''}</svg>`;
+const passwordToggleIcon=visible=>icon(visible?'eyeOff':'eye');
 async function api(url,{method='GET',body:payload,timeout=20000}={}){
   let response;try{response=await fetch(url,{method,credentials:'same-origin',signal:AbortSignal.timeout(timeout),headers:payload?{'Content-Type':'application/json'}:undefined,body:payload?JSON.stringify(payload):undefined});}catch{throw new Error('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาตรวจว่าเปิด StockLens อยู่');}
   let result;try{result=await response.json();}catch{throw new Error('เซิร์ฟเวอร์ยังไม่พร้อม กรุณาเปิดแอปผ่าน npm start');}
