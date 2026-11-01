@@ -1,3 +1,4 @@
+import {navigateUI} from './navigation.mjs';
 import {chromium} from 'playwright';
 import {once} from 'node:events';
 import {mkdirSync} from 'node:fs';
@@ -19,10 +20,7 @@ try{
   await page.locator('[data-auth-mode=login]').first().click();await page.locator('[name=email]').fill(email);await page.locator('[name=password]').fill(password);await page.locator('#login-form [type=submit]').click();await page.waitForSelector('body:not(.signed-out)');
   assert.equal(await page.locator('.nav:visible').evaluateAll(nodes=>nodes.every(el=>parseFloat(getComputedStyle(el).fontSize)>=12)),true,'visible navigation remains readable');
   async function go(destination){
-   if(width<=1100){
-    const main=page.locator(`.mobile-nav [data-page=${destination}]`);
-    if(await main.count())await main.click();else{await page.locator('[data-mobile-more]').click();await page.locator(`#mobile-menu [data-page=${destination}]`).click();}
-   }else await page.locator(`.sidebar [data-page=${destination}]`).click();
+   await navigateUI(page,destination);
    await page.waitForFunction(route=>location.hash==='#'+route,destination);
    await page.waitForFunction(()=>document.activeElement===document.querySelector('#main h1'));
   }

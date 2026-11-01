@@ -22,9 +22,9 @@ Screenshots use isolated test accounts and clearly labelled test news. No fixtur
 | Account | [before](screenshots/before-auth-390.png) / [after](screenshots/after-auth-390.png) | [before](screenshots/before-auth-768.png) / [after](screenshots/after-auth-768.png) | [before](screenshots/before-auth-1440.png) / [after](screenshots/after-auth-1440.png) |
 | Overview | [before](screenshots/before-overview-390.png) / [after](screenshots/after-overview-390.png) | [before](screenshots/before-overview-768.png) / [after](screenshots/after-overview-768.png) | [before](screenshots/before-overview-1440.png) / [after](screenshots/after-overview-1440.png) |
 
-Taste app direction: framed-sheet, seed 106675503, existing palette/type retained. Its static lint reported zero failures. Live inspection fixed the missing mobile auth h1. The remaining tiny-navigation warning names hidden legacy sidebar text; real Playwright checks reach and measure the visible navigation at all three widths. The auth form is intentionally centred within its panel, which triggers the unused-canvas heuristic.
+The user subsequently supplied two UI references: a dark floating lime navigation dock and a white/purple sliding login card. These override the earlier framed-sheet visual direction. The updated account form and dock are tested at all three widths, including email retention, panel placement, five destinations, active-bead alignment, keyboard use and reduced motion. See [the reference update and screenshots](REFERENCE_UI.md).
 
-Impeccable detection was run once on the final UI targets. Its avatar contrast finding was corrected. Its remaining navigation/glow readings refer to legacy style values rather than the live final cascade; visible navigation and toast styles were checked in the running app. The Inter warning is exempted by the approved requirement to preserve the app's fonts. These detector results are advisory evidence, not a claim of zero tool findings.
+Taste/Impeccable are applied with the supplied reference as visual authority. Purple gradients and the selected lime glow are deliberate features from those references. Core privacy/error/service-state coverage remains in the existing browser suites.
 
 ## Account-dependent cutover
 

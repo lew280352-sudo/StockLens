@@ -1,3 +1,4 @@
+import {navigateUI} from './navigation.mjs';
 import { chromium } from 'playwright';
 import { once } from 'node:events';
 import { mkdtempSync } from 'node:fs';
@@ -34,7 +35,7 @@ try {
   await page.locator('[data-source-remove=microsoft]').click();await page.locator('[data-source-confirm=microsoft]').click();await page.waitForSelector('[data-add-feed=microsoft]');
   await page.locator('[data-add-feed=microsoft]').click();await page.waitForFunction(() => !document.querySelector('[data-add-feed=microsoft]'));
   const restored = await page.evaluate(() => fetch('/api/news').then((r) => r.json()));assert.ok(restored.items.some((n) => n.symbol === 'MSFT'));
-  await page.locator('[data-mobile-more]').click();await page.locator('#mobile-menu [data-page=insights]').click();await page.locator('#ai-symbol').selectOption('MSFT');await page.locator('[data-ai-summary]').click();await page.waitForFunction(() => document.querySelector('.ai-trend')?.textContent.includes('สรุป Microsoft'));assert.match(await page.locator('.ai-card').innerText(), /ข้อมูลมีเฉพาะหัวข้อ/);assert.equal(await page.locator('.ai-sources a').count(), 1);
+  await navigateUI(page,'insights');await page.locator('#ai-symbol').selectOption('MSFT');await page.locator('[data-ai-summary]').click();await page.waitForFunction(() => document.querySelector('.ai-trend')?.textContent.includes('สรุป Microsoft'));assert.match(await page.locator('.ai-card').innerText(), /ข้อมูลมีเฉพาะหัวข้อ/);assert.equal(await page.locator('.ai-sources a').count(), 1);
   assert.match(await page.locator('.ai-timeline').innerText(), /ข่าวล่าสุดที่ใช้.*AI สรุปเมื่อ/s);
   assert.match(await page.locator('.ai-sources').innerText(), /เผยแพร่.*น\. \(ไทย\)/s);
   await page.locator('#ai-question').fill('ข่าวนี้เกี่ยวกับอะไร?');await page.locator('#ai-question-form button').click();

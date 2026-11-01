@@ -1,3 +1,4 @@
+import {navigateUI} from './navigation.mjs';
 import { chromium } from 'playwright';
 import { once } from 'node:events';
 import { randomBytes } from 'node:crypto';
@@ -24,15 +25,15 @@ try {
   await page.locator('#register-form [name=password]').fill('correct-test-password');await page.locator('#register-form [name=confirm]').fill('correct-test-password');
   await page.locator('#register-form [type=submit]').click();await page.waitForSelector('#login-form');
   await page.locator('#login-form [name=password]').fill('correct-test-password');await page.locator('#login-form [type=submit]').click();await page.waitForSelector('body:not(.signed-out)');
-  await page.locator('.sidebar [data-page=insights]').click();await page.waitForSelector('.weekly-chart');
+  await navigateUI(page,'insights');await page.waitForSelector('.weekly-chart');
   assert.match(await page.locator('.weekly-chart').innerText(), /รายสัปดาห์/);
-  await page.locator('.sidebar [data-page=alerts]').click();await page.waitForSelector('#security-card [data-security-setup]');
+  await navigateUI(page,'alerts');await page.waitForSelector('#security-card [data-security-setup]');
   assert.equal(await page.locator('#security-card [data-security-setup]').isEnabled(), true);
   await page.locator('#security-card [data-security-setup]').click();await page.locator('#mfa-setup-form [name=password]').fill('correct-test-password');await page.locator('#mfa-setup-form [type=submit]').click();
   await page.waitForSelector('#mfa-enable-form');const secret = (await page.locator('.mfa-secret').innerText()).trim();
   await page.locator('#mfa-enable-form [name=code]').fill(totpCode(secret, Math.floor(Date.now() / 30000)));
   await page.locator('#mfa-enable-form [type=submit]').click();await page.waitForSelector('#security-card [data-security-disable]');
-  await page.locator('.sidebar [data-logout]').click();await page.waitForSelector('#login-form');
+  await page.locator('.topbar [data-logout]').click();await page.waitForSelector('#login-form');
   await page.locator('#login-form [name=email]').fill('security-ui@example.com');await page.locator('#login-form [name=password]').fill('correct-test-password');
   await page.locator('#login-form [type=submit]').click();await page.waitForSelector('#login-challenge-form');
   assert.match(await page.locator('#login-challenge-form').innerText(), /Authenticator/);

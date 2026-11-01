@@ -19,11 +19,16 @@ jobs:
       - run: npm run test:responsive
         env:
           UI_ARTIFACT_DIR: artifacts/responsive
+      - run: npm run test:reference-ui
+        env:
+          REFERENCE_ARTIFACT_DIR: artifacts/reference
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: responsive-screenshots
-          path: artifacts/responsive
+          path: |
+            artifacts/responsive
+            artifacts/reference
           if-no-files-found: ignore
       - run: npm run test:research-ui
       - run: npm run test:security-ui

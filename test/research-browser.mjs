@@ -1,3 +1,4 @@
+import {navigateUI} from './navigation.mjs';
 import { chromium } from 'playwright';
 import { once } from 'node:events';
 import assert from 'node:assert/strict';
@@ -20,7 +21,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1050 } }),errors = [];page.on('pageerror', (error) => errors.push(error.message));
   await page.goto(base);await page.locator('[name=name]').fill('Research User');await page.locator('[name=email]').fill('research-ui@example.com');await page.locator('[name=password]').fill('strong-test-password');await page.locator('[name=confirm]').fill('strong-test-password');await page.locator('#register-form [type=submit]').click();
   await page.waitForSelector('#login-form');await page.locator('[name=password]').fill('strong-test-password');await page.locator('#login-form [type=submit]').click();await page.waitForSelector('body:not(.signed-out)');
-  await page.locator('.sidebar [data-page=search]').click();
+  await navigateUI(page,'search');
   await page.locator('#company-query').fill('NVIDIA');await page.locator('[data-research-find]').click();
   await page.waitForSelector('[data-research-index]');await page.locator('[data-research-index]').click();
   await page.locator('[data-research-months="3"]').click();assert.equal(await page.locator('[data-research-months="3"]').getAttribute('aria-pressed'), 'true');

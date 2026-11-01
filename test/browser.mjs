@@ -1,3 +1,4 @@
+import {navigateUI} from './navigation.mjs';
 import { chromium } from 'playwright';
 import { once } from 'node:events';
 import { mkdtempSync } from 'node:fs';
@@ -23,18 +24,18 @@ try {
   await page.locator('[name=password]').fill('strong-test-password');await page.locator('#login-form [type=submit]').click();await page.waitForSelector('body:not(.signed-out)');
   await page.locator('[data-action=add]').first().click();await page.locator('#following-form [name=symbol]').selectOption('AAPL');await page.locator('#following-form [type=submit]').click();await page.waitForSelector('#modal:not([open])', { state: 'attached' });
   await page.screenshot({ path: path.join(artifactDir, 'dashboard-desktop.png'), fullPage: true });
-  await page.locator('.sidebar [data-page=sources]').click();await page.waitForSelector('#source-form');
+  await navigateUI(page,'sources');await page.waitForSelector('#source-form');
   await page.locator('#source-preset-query').fill('NVDA');
   assert.equal(await page.locator('.source-presets [data-add-feed]:visible').count(), 1);
   assert.equal(await page.locator('.source-presets [data-add-feed=market-nvda]').isVisible(), true);
   await page.locator('#source-preset-query').fill('');
   assert.equal(await page.locator('.source-entry').count(), 4);
   await page.locator('#source-form [name=name]').fill('Example News');await page.locator('#source-form [name=url]').fill('https://example.com/news');await page.locator('#source-form [type=submit]').click();await page.waitForFunction(() => document.querySelectorAll('.source-entry').length === 5);
-  await page.reload();await page.waitForSelector('body:not(.signed-out)');await page.locator('.sidebar [data-page=sources]').click();assert.equal(await page.locator('.source-entry').count(), 5);
+  await page.reload();await page.waitForSelector('body:not(.signed-out)');await navigateUI(page,'sources');assert.equal(await page.locator('.source-entry').count(), 5);
   await page.locator('#source-form [name=name]').fill('Duplicate');await page.locator('#source-form [name=url]').fill('https://example.com/news');await page.locator('#source-form [type=submit]').click();await page.waitForFunction(() => document.querySelector('#source-error').textContent.includes('มี URL'));
   await page.screenshot({ path: path.join(artifactDir, 'sources-desktop.png'), fullPage: true });
   await page.locator('.source-entry').last().locator('.remove').click();await page.locator('[data-source-confirm]').click();await page.waitForFunction(() => document.querySelectorAll('.source-entry').length === 4);
-  await page.locator('.sidebar [data-page=search]').click();
+  await navigateUI(page,'search');
   assert.equal(await page.locator('.company-card').count(), 36);
   assert.equal(await page.locator('.company-card img').count(), Object.keys(companyIcons).length);
   for(const symbol of ['MSFT','BRK.B'])assert.ok(await page.getByRole('img',{name:new RegExp(symbol.replace('.','\\.'))}).count(),symbol+' has an accessible ticker fallback');
@@ -54,12 +55,12 @@ try {
   assert.match(await page.locator('#research-panel .research-choice').innerText(), /Broadcom.*AVGO/);
   assert.equal(await page.locator('#modal').getAttribute('open'), null);
   await page.locator('#company-query').fill('แอปเปิล');assert.equal(await page.locator('.company-card').count(), 1);
-  await page.locator('.sidebar [data-page=following]').click();assert.match(await page.locator('.company-grid').first().innerText(), /AAPL/);assert.equal(await page.locator('input[name=qty], input[name=cost]').count(), 0);assert.doesNotMatch(await page.locator('#main').innerText(), /0\.125001|ต้นทุนเฉลี่ย/);
-  await page.locator('.sidebar [data-page=insights]').click();await page.locator('#ai-symbol').selectOption('NVDA');assert.match(await page.locator('.ai-trend').innerText(), /ยังเริ่ม AI ไม่ได้/);
+  await navigateUI(page,'following');assert.match(await page.locator('.company-grid').first().innerText(), /AAPL/);assert.equal(await page.locator('input[name=qty], input[name=cost]').count(), 0);assert.doesNotMatch(await page.locator('#main').innerText(), /0\.125001|ต้นทุนเฉลี่ย/);
+  await navigateUI(page,'insights');await page.locator('#ai-symbol').selectOption('NVDA');assert.match(await page.locator('.ai-trend').innerText(), /ยังเริ่ม AI ไม่ได้/);
   // A stale view must reload rather than silently overwrite a newer save.
   const snapshot = await page.evaluate(() => fetch('/api/session').then((r) => r.json()));
   await page.evaluate(async (snapshot) => {const next = structuredClone(snapshot.state);next.watchlist.push('MSFT');const r = await fetch('/api/state', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: snapshot.user.id, revision: snapshot.revision, state: next }) });if (!r.ok) throw new Error('failed to prepare concurrent save');}, snapshot);
-  await page.locator('.sidebar [data-page=alerts]').click();
+  await navigateUI(page,'alerts');
   await page.waitForSelector('#security-card [data-security-delete]');await page.waitForSelector('#push-card [data-push-enable]');
   assert.equal(await page.locator('#security-card [data-security-setup]').isDisabled(), true, 'MFA needs a local encryption key');
   assert.equal(await page.locator('#push-card [data-push-enable]').isDisabled(), true, 'Push needs VAPID keys');
@@ -69,10 +70,10 @@ try {
   assert.deepEqual((await page.evaluate(() => fetch('/api/session').then((r) => r.json()))).state.watchlist, ['AAPL', 'MSFT']);
   // Expired/logout session must clear private content on the next attempted save.
   await page.evaluate(() => fetch('/api/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }));
-  await page.locator('.sidebar [data-page=sources]').click();await page.locator('#source-form [name=name]').fill('Expired session source');await page.locator('#source-form [name=url]').fill('https://example.com/expired');await page.locator('#source-form [type=submit]').click();await page.waitForSelector('#login-form');
+  await navigateUI(page,'sources');await page.locator('#source-form [name=name]').fill('Expired session source');await page.locator('#source-form [name=url]').fill('https://example.com/expired');await page.locator('#source-form [type=submit]').click();await page.waitForSelector('#login-form');
   assert.equal(await page.locator('#main').innerHTML(), '');
   await page.locator('[name=email]').fill('ui@example.com');await page.locator('[name=password]').fill('strong-test-password');await page.locator('#login-form [type=submit]').click();await page.waitForSelector('body:not(.signed-out)');
-  await page.evaluate(()=>toast('ข่าวส่วนตัว PRIVATE-MSFT'));await page.locator('.sidebar [data-logout]').click();await page.waitForSelector('#login-form');
+  await page.evaluate(()=>toast('ข่าวส่วนตัว PRIVATE-MSFT'));await page.locator('.topbar [data-logout]').click();await page.waitForSelector('#login-form');
   assert.equal(await page.locator('#main').innerHTML(), '');assert.doesNotMatch(await page.locator('#toast').innerText(),/PRIVATE-MSFT/);await page.reload();await page.waitForSelector('#login-form');
   await page.setViewportSize({ width: 390, height: 844 });await page.locator('[data-auth-mode=register]').first().click();await page.screenshot({ path: path.join(artifactDir, 'register-mobile.png'), fullPage: true });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);

@@ -17,7 +17,8 @@
     "test:pwa": "node test/pwa.mjs",
     "backup": "node --env-file-if-exists=.env scripts/backup.mjs",
     "audit:privacy": "node --env-file-if-exists=.env scripts/audit-privacy.mjs",
-    "test:responsive": "node test/responsive-browser.mjs"
+    "test:responsive": "node test/responsive-browser.mjs",
+    "test:reference-ui": "node test/reference-ui-browser.mjs"
   },
   "devDependencies": {
     "playwright": "^1.58.2"
