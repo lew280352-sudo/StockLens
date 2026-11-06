@@ -13,11 +13,12 @@ try{
   const account={name:'Account tools test',email:`tools-${width}@example.com`,password:'account-tools-browser-password'};
   await context.request.post(base+'/api/register',{headers:{Origin:base},data:account});await page.goto(base+'/#login');await page.locator('#login-form [name=email]').fill(account.email);await page.locator('#login-form [name=password]').fill(account.password);await page.locator('#login-form [type=submit]').click();await page.waitForSelector('#onboarding-form');
   await page.locator('#onboarding-form [value=AAPL]').check();await page.locator('#onboarding-form [value=NVDA]').check();
-  await page.screenshot({path:`${artifacts}/welcome-${width}.png`,fullPage:true});
+  if(width>=768){const submit=await page.locator('#onboarding-form [type=submit]').boundingBox(),dock=await page.locator('.app-dock').boundingBox();assert.ok(submit.y+submit.height<dock.y,'initial desktop/tablet save action is clear of the dock');}
+  await page.screenshot({path:`${artifacts}/welcome-${width}.png`,fullPage:true,animations:'disabled'});
   let failOnce=true;await page.route('**/api/onboarding',async r=>{if(failOnce){failOnce=false;await r.fulfill({status:503,json:{error:'การบันทึกขัดข้องชั่วคราว กรุณาลองอีกครั้ง'}});}else await r.continue();});
   await page.locator('#onboarding-form [type=submit]').click();await page.waitForFunction(()=>document.querySelector('#onboarding-error')?.textContent);assert.equal(await page.locator('#onboarding-form [value=AAPL]').isChecked(),true);
   const errorBounds=await page.locator('#onboarding-error').boundingBox(),dockBounds=await page.locator('.app-dock').boundingBox();assert.ok(errorBounds.y+errorBounds.height<dockBounds.y,'focused setup error is clear of the floating dock');
-  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.screenshot({path:`${artifacts}/welcome-error-${width}.png`,fullPage:true});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.screenshot({path:`${artifacts}/welcome-error-${width}.png`,fullPage:true,animations:'disabled'});
   await page.locator('#onboarding-form [type=submit]').click();await page.waitForFunction(()=>location.hash==='#news');
   const saved=await (await context.request.get(base+'/api/session')).json();assert.deepEqual(saved.state.watchlist,['AAPL','NVDA']);assert.equal(saved.onboarding.needed,false);
   await page.reload();await page.waitForSelector('body:not(.signed-out)');assert.equal(await page.locator('#onboarding-form').count(),0);
@@ -28,7 +29,7 @@ try{
   await page.locator('[data-reload-setup]').click();await page.waitForSelector('#onboarding-form [value=MSFT]:checked');
   const other=await browser.newContext({userAgent:'Mozilla/5.0 (iPhone) Version/18.0 Mobile Safari/604.1'});await other.request.post(base+'/api/login',{headers:{Origin:base},data:account});
   await navigateUI(page,'devices');await page.waitForSelector('[data-device-row]');assert.equal(await page.locator('[data-device-row]').count(),2);assert.equal(await page.locator('[data-device-row]').first().getAttribute('data-current-device'),'');assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
-  await page.screenshot({path:`${artifacts}/devices-${width}.png`,fullPage:true});
+  await page.screenshot({path:`${artifacts}/devices-${width}.png`,fullPage:true,animations:'disabled'});
   await page.locator('[data-device-row]:not([data-current-device]) [data-device-revoke]').click();await page.locator('[data-confirm-device-revoke]').click();await page.waitForFunction(()=>document.querySelectorAll('[data-device-row]').length===1);
   assert.equal((await (await other.request.get(base+'/api/session')).json()).user,null);assert.equal((await (await context.request.get(base+'/api/session')).json()).user.email,account.email);await other.close();
   await page.locator('[data-current-device] [data-device-revoke]').click();await page.locator('[data-confirm-device-revoke]').click();await page.waitForSelector('#login-form');assert.equal(await page.locator('#main').innerText(),'');
