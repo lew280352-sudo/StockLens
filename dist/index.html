@@ -16,8 +16,13 @@
   <section id="auth-screen" data-mode="register" aria-label="สมัครสมาชิกและเข้าสู่ระบบ">
     <a class="brand auth-brand" href="/"><span class="brand-icon">s<span>l</span></span>stocklens<span class="brand-dot">.</span></a>
     <div class="auth-shell">
-      <div class="auth-panel"><div id="auth-content" class="auth-content"><p class="muted" role="status">กำลังตรวจสอบการเข้าสู่ระบบ…</p></div><p class="auth-panel-footer">เก็บเฉพาะบริษัทและแหล่งข่าวที่เลือก<br>AI อาจสรุปผิดพลาด โปรดตรวจต้นฉบับ</p></div>
-      <div class="auth-story"><div class="auth-story-content"><h2 id="auth-story-title">กลับมาอ่านข่าวต่อ</h2><p id="auth-story-description">เข้าสู่ระบบเพื่อกลับไปยังบริษัทและแหล่งข่าวที่คุณเลือกไว้</p><button class="btn auth-story-switch" data-auth-mode="login">เข้าสู่ระบบ</button></div></div>
+      <div class="auth-panel"><div id="auth-content" class="auth-content"><p class="muted" role="status">กำลังตรวจสอบการเข้าสู่ระบบ…</p></div><p class="auth-panel-footer"><span data-icon="shield"></span>เก็บเฉพาะบริษัทและแหล่งข่าวที่เลือก</p></div>
+      <aside class="auth-story" aria-labelledby="auth-story-title"><div class="auth-story-content">
+        <div class="auth-story-intro"><h2 id="auth-story-title">ข่าวบริษัท<br>ที่คุณเลือกเอง</h2><p id="auth-story-description">รวมข่าวจากบริษัทที่สนใจไว้ในที่เดียว<br>พร้อมลิงก์กลับไปอ่านต้นฉบับ</p></div>
+        <figure class="auth-company-examples"><figcaption>ตัวอย่างบริษัทที่ติดตามได้</figcaption><ul><li><img src="company-icons/apple.svg" alt="" width="26" height="26"><span translate="no">AAPL</span></li><li><img src="company-icons/nvidia.svg" alt="" width="26" height="26"><span translate="no">NVDA</span></li><li><img src="company-icons/netflix.svg" alt="" width="26" height="26"><span translate="no">NFLX</span></li></ul></figure>
+        <ul class="auth-features"><li><span data-icon="wallet"></span><div><b>เลือกบริษัทและแหล่งข่าว</b><span>รายการติดตามแยกตามบัญชีของคุณ</span></div></li><li><span data-icon="external"></span><div><b>อ่านต่อจากต้นฉบับ</b><span>เห็นที่มาและเวลาเผยแพร่ของแต่ละข่าว</span></div></li></ul>
+        <div class="auth-story-action"><p id="auth-story-prompt">มีบัญชี StockLens แล้ว?</p><button class="btn auth-story-switch" data-auth-mode="login">เข้าสู่ระบบ</button></div>
+      </div></aside>
     </div>
   </section>
   <div class="app">

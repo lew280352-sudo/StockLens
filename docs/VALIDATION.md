@@ -26,6 +26,8 @@ The user subsequently supplied two UI references: a dark floating lime navigatio
 
 Taste/Impeccable are applied with the supplied reference as visual authority. Purple gradients and the selected lime glow are deliberate features from those references. Core privacy/error/service-state coverage remains in the existing browser suites.
 
+The 6 November account refinement adds equal 50/50 desktop panes and one frame height for registration/login, with natural mobile flow. A regression first failed on the previous variable-height frame, then passed after the layout fix. Current local checks: all 63 unit/API tests plus reference UI (320px, 390/768/1440px and short desktop), general UI, responsive, MFA/privacy-race and email-login browser suites pass. Screenshots were inspected and replaced. The [design notes](AUTH_UI_REFINEMENT.md) pin the newly used Anthropic/Vercel skill revisions; this local rerun does not imply a production migration or live service-provider verification.
+
 ## Account-dependent cutover
 
 Follow [FREE_CLOUD.md](FREE_CLOUD.md). Locate the original .data/stocklens.sqlite or a verified backup on the machine/service that ran the old app; keep the original MFA encryption and VAPID keys in a secret channel. Connect Render and provision a matching Turso Free libSQL database. Import before first production startup, then verify login/watchlist on HTTPS and after redeployment. Do not create an empty replacement account database or publish before the migration can be checked.
