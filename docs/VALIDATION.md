@@ -1,6 +1,6 @@
 # StockLens implementation evidence
 
-This branch is prepared for review. No production URL has been verified and no legacy account data has been imported. The owner confirmed existing accounts/watchlists must be preserved, but their source location is still unknown.
+This branch is prepared for review. No production URL has been verified and no legacy account data has been imported. The owner subsequently authorized a fresh database on 6 November 2026; legacy discovery/import is no longer a deployment prerequisite.
 
 ## Automated checks
 
@@ -30,9 +30,9 @@ The 6 November account refinement adds equal 50/50 desktop panes and one frame h
 
 ## Account-dependent cutover
 
-The owner located the original app context on Windows, not this workspace, and confirmed Render/Turso are not yet configured. See [the current status and standalone Windows finder](CUTOVER_STATUS.md). The local preview database and Docker smoke-test database were inspected read-only; both contain zero accounts and are not substitutes for the owner's original data. Live RSS probes successfully parsed all four company feeds; AI/SMTP/VAPID credentials remain absent and inbox/handset delivery is unverified.
+The owner authorized starting fresh instead of migrating the Windows database. Render/Turso are not yet configured. See [the current status and standalone Windows finder](CUTOVER_STATUS.md). The local preview database and Docker smoke-test database were inspected read-only; both contain zero accounts and are not substitutes for the owner's original data. Live RSS probes successfully parsed all four company feeds; AI/SMTP/VAPID credentials remain absent and inbox/handset delivery is unverified.
 
-Follow [FREE_CLOUD.md](FREE_CLOUD.md). Locate the original .data/stocklens.sqlite or a verified backup on the machine/service that ran the old app; keep the original MFA encryption and VAPID keys in a secret channel. Connect Render and provision a matching Turso Free libSQL database. Import before first production startup, then verify login/watchlist on HTTPS and after redeployment. Do not create an empty replacement account database or publish before the migration can be checked.
+Follow [FREE_CLOUD.md](FREE_CLOUD.md). Connect Render and provision a new Turso Free libSQL database. Set database credentials and fresh MFA/VAPID keys in secrets, deploy the validated source, then verify new-account login/watchlist on HTTPS and after redeployment. No legacy import is required under the current authorization; do not delete or overwrite the original files.
 
 ## First use and device management
 
