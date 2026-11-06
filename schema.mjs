@@ -21,8 +21,7 @@ const statements=[
 
 export async function initializeSchema(db){
   await db.exec(['CREATE TABLE IF NOT EXISTS schema_migrations(id TEXT PRIMARY KEY)']);
-  if(await db.get('SELECT id FROM schema_migrations WHERE id=?',['base-v1']))return;
-  await db.transaction(async tx=>{
+  if(!(await db.get('SELECT id FROM schema_migrations WHERE id=?',['base-v1'])))await db.transaction(async tx=>{
     if(await tx.get('SELECT id FROM schema_migrations WHERE id=?',['base-v1']))return;
     await tx.exec(statements);
     if(!(await tx.all('PRAGMA table_info(user_state)')).some(c=>c.name==='revision'))await tx.exec(['ALTER TABLE user_state ADD COLUMN revision INTEGER NOT NULL DEFAULT 0']);
@@ -36,5 +35,18 @@ export async function initializeSchema(db){
       await tx.run('UPDATE user_state SET data=?,revision=revision+1 WHERE user_id=?',[JSON.stringify({watchlist,alerts,sources}),row.user_id]);
     }
     await tx.run('INSERT INTO schema_migrations VALUES(?)',['base-v1']);
+  });
+  if(!(await db.get('SELECT id FROM schema_migrations WHERE id=?',['account-tools-v1'])))await db.transaction(async tx=>{
+    if(await tx.get('SELECT id FROM schema_migrations WHERE id=?',['account-tools-v1']))return;
+    await tx.exec([
+      'CREATE INDEX IF NOT EXISTS session_user ON sessions(user_id)',
+      "CREATE TABLE IF NOT EXISTS session_devices(token_hash TEXT PRIMARY KEY REFERENCES sessions(token_hash) ON DELETE CASCADE,id TEXT NOT NULL UNIQUE,name TEXT NOT NULL,created_at INTEGER,last_seen_at INTEGER)",
+      "CREATE TABLE IF NOT EXISTS session_push(subscription_id TEXT PRIMARY KEY REFERENCES push_subscriptions(id) ON DELETE CASCADE,session_hash TEXT NOT NULL REFERENCES sessions(token_hash) ON DELETE CASCADE)",
+      'CREATE INDEX IF NOT EXISTS session_push_owner ON session_push(session_hash)',
+      "CREATE TRIGGER IF NOT EXISTS session_push_cleanup BEFORE DELETE ON sessions BEGIN DELETE FROM push_subscriptions WHERE id IN (SELECT subscription_id FROM session_push WHERE session_hash=OLD.token_hash); END",
+      "CREATE TABLE IF NOT EXISTS user_onboarding(user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,status TEXT NOT NULL CHECK(status IN ('pending','completed','skipped')),completed_at INTEGER)",
+      "INSERT INTO session_devices(token_hash,id,name) SELECT token_hash,lower(hex(randomblob(16))),'อุปกรณ์เดิม' FROM sessions WHERE token_hash NOT IN (SELECT token_hash FROM session_devices)"
+    ]);
+    await tx.run('INSERT INTO schema_migrations VALUES(?)',['account-tools-v1']);
   });
 }

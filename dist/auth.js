@@ -38,7 +38,7 @@ function enterApp(result){
   document.querySelectorAll('[data-user-email]').forEach(el=>el.textContent=currentUser.email);
   document.querySelectorAll('[data-user-avatar]').forEach(el=>el.textContent=Array.from(currentUser.name)[0].toUpperCase());
   const requested=location.hash.slice(1);
-  $('#auth-content').innerHTML='';document.body.classList.remove('signed-out');navigate(['overview','news','following','portfolio','insights','search','alerts','sources'].includes(requested)?requested:'overview');loadNews();loadAIStatus();if(requested!=='following')loadQuotes();
+  $('#auth-content').innerHTML='';document.body.classList.remove('signed-out');navigate(result.onboarding?.needed?'welcome':['overview','news','following','portfolio','insights','search','alerts','sources','welcome','devices'].includes(requested)?requested:'overview');loadNews();loadAIStatus();if(requested!=='following')loadQuotes();
 }
 const presetSources=[
   {id:'apple',name:'Apple Newsroom',symbol:'AAPL',url:'https://www.apple.com/newsroom/'},

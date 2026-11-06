@@ -4,7 +4,7 @@ This branch is prepared for review. No production URL has been verified and no l
 
 ## Automated checks
 
-- Native SQLite unit/API coverage (63 passing tests): async storage, rollback, account separation, revisions, password recovery, TOTP/OTP replay, persistent throttles and untrusted forwarded headers.
+- Native SQLite unit/API coverage (68 passing tests): async storage, rollback, account separation, revisions, password recovery, TOTP/OTP replay, persistent throttles, untrusted forwarded headers, first-use setup, session management and read-only legacy discovery.
 - Real official @libsql/client HTTP driver against isolated libSQL containers: commit/rollback/reconnect, app restart retaining login/watchlist, revision races, credential changes during delayed login, concurrent MFA enrollment and overlapping startup migrations.
 - Import fixture checked against an isolated empty remote destination: unchanged password hashes, MFA key validation, watchlist conversion without holdings, revision preservation, discarded sessions/pending enrollment, occupied-target refusal and rollback.
 - Real HTTP 401 database startup fails closed; no local database file is created. No production credentials are used in tests.
@@ -30,7 +30,15 @@ The 6 November account refinement adds equal 50/50 desktop panes and one frame h
 
 ## Account-dependent cutover
 
+The owner located the original app context on Windows, not this workspace, and confirmed Render/Turso are not yet configured. See [the current status and standalone Windows finder](CUTOVER_STATUS.md). The local preview database and Docker smoke-test database were inspected read-only; both contain zero accounts and are not substitutes for the owner's original data. Live RSS probes successfully parsed all four company feeds; AI/SMTP/VAPID credentials remain absent and inbox/handset delivery is unverified.
+
 Follow [FREE_CLOUD.md](FREE_CLOUD.md). Locate the original .data/stocklens.sqlite or a verified backup on the machine/service that ran the old app; keep the original MFA encryption and VAPID keys in a secret channel. Connect Render and provision a matching Turso Free libSQL database. Import before first production startup, then verify login/watchlist on HTTPS and after redeployment. Do not create an empty replacement account database or publish before the migration can be checked.
+
+## First use and device management
+
+The new account UI suite covers 390/768/1440px setup, failed-save retention, drafts conflicting with later in-app edits, persisted completion, account-scoped device lists, remote/self revocation and delayed private results after logout. An initial red test confirmed the previous app did not provide these pages/APIs. Existing general/PWA/20-user suites explicitly choose the first-use skip action before exercising their original workflows. The actual HTTP libSQL restart test now verifies onboarding and session records survive replacement and remote revocation also removes a linked Push subscription.
+
+The Windows finder is a standalone Node script using read-only SQLite connections. Its test verifies correct account counts without revealing private columns or changing database bytes. The Windows .cmd wrapper itself has not been exercised on a Windows machine in this Linux workspace.
 
 
 ## Final fresh-review corrections

@@ -6,7 +6,7 @@ import {initializeSchema} from '../schema.mjs';
 import {companies} from '../dist/catalog.js';
 import {decryptSecret} from '../security.mjs';
 
-const tables=['users','user_state','recovery_codes','user_mfa','market_feed_migrations','push_subscriptions','email_verifications'];
+const tables=['users','user_state','recovery_codes','user_mfa','market_feed_migrations','push_subscriptions','email_verifications','user_onboarding'];
 const quote=id=>'"'+id.replaceAll('"','""')+'"';
 const symbols=new Set(companies.map(c=>c.symbol));
 

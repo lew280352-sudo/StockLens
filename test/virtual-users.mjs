@@ -1,4 +1,4 @@
-import {navigateUI} from './navigation.mjs';
+import {navigateUI,skipFirstUse} from './navigation.mjs';
 import { chromium } from 'playwright';
 import { once } from 'node:events';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -29,7 +29,7 @@ async function api(user, route, method = 'GET', payload) {return user.page.evalu
 async function login(user) {
   const page = user.page;await page.locator('#login-form [name=email]').fill(user.email);await page.locator('#login-form [name=password]').fill(user.password);
   const response = page.waitForResponse((r) => r.url().endsWith('/api/login') && r.request().method() === 'POST');await page.locator('#login-form [type=submit]').click();const result = await response;
-  assert.equal(result.status(), 200, `Login returned HTTP ${result.status()}`);await page.waitForSelector('body:not(.signed-out)');
+  assert.equal(result.status(), 200, `Login returned HTTP ${result.status()}`);await page.waitForSelector('body:not(.signed-out)');await skipFirstUse(page);
 }
 try {
   browser = await chromium.launch({ executablePath: process.env.BROWSER_PATH || (process.platform === 'win32' ? 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe' : undefined), headless: true });
@@ -57,7 +57,7 @@ try {
     await step(user, 'invalid-source', async () => {await page.locator('#source-form [name=url]').fill('http://127.0.0.1/private');const response = page.waitForResponse((r) => r.url().endsWith('/api/state') && r.request().method() === 'PUT');await page.locator('#source-form [type=submit]').click();assert.equal((await response).status(), 400);await page.waitForFunction(() => !document.querySelector('#source-form [type=submit]').disabled);assert.equal((await api(user, '/api/session')).data.state.sources.length, 5);});
     await step(user, 'alerts', async () => {await navigate(user, 'alerts');await page.locator('#alert-form [name=time]').fill(`08:${String(user.number).padStart(2, '0')}`);const response = page.waitForResponse((r) => r.url().endsWith('/api/state') && r.request().method() === 'PUT');await page.locator('#alert-form [type=submit]').click();assert.equal((await response).status(), 200);await page.waitForFunction(() => !isSaving);});
     if (user.number % 5 === 0) await step(user, 'stale-tab', async () => {const old = (await api(user, '/api/session')).data;const next = structuredClone(old.state);next.watchlist.push('NVDA');assert.equal((await api(user, '/api/state', 'PUT', { userId: old.user.id, revision: old.revision, state: next })).status, 200);await navigate(user, 'alerts');await page.locator('#alert-form [name=time]').fill('07:00');const response = page.waitForResponse((r) => r.url().endsWith('/api/state') && r.request().method() === 'PUT');await page.locator('#alert-form [type=submit]').click();assert.equal((await response).status(), 409);await page.waitForFunction(() => !isSaving);assert.deepEqual((await api(user, '/api/session')).data.state.watchlist, ['AAPL', 'NVDA']);});
-    await step(user, 'reload-and-isolation', async () => {await page.reload();await page.waitForSelector('body:not(.signed-out)');const result = await api(user, '/api/session');assert.equal(result.data.user.email, user.email);assert.ok(result.data.state.watchlist.includes('AAPL'));assert.ok(!JSON.stringify(result.data.state).includes('qty'));assert.equal(result.data.state.alerts.time, `08:${String(user.number).padStart(2, '0')}`);assert.equal(result.data.state.sources.length, 5);assert.equal(result.data.state.sources.at(-1).url, `https://example.com/user-${user.number}`);user.userId = result.data.user.id;});
+    await step(user, 'reload-and-isolation', async () => {await page.reload();await page.waitForSelector('body:not(.signed-out)');await skipFirstUse(page);const result = await api(user, '/api/session');assert.equal(result.data.user.email, user.email);assert.ok(result.data.state.watchlist.includes('AAPL'));assert.ok(!JSON.stringify(result.data.state).includes('qty'));assert.equal(result.data.state.alerts.time, `08:${String(user.number).padStart(2, '0')}`);assert.equal(result.data.state.sources.length, 5);assert.equal(result.data.state.sources.at(-1).url, `https://example.com/user-${user.number}`);user.userId = result.data.user.id;});
   });
   await phase('cross-account-protection', async (user) => {
     const other = users.find((candidate) => candidate.userId && candidate.number !== user.number);assert.ok(other);

@@ -129,10 +129,17 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
   const publicHost = publicOrigin ? new URL(publicOrigin).host : null;
   const cookie = (token, age, req) => `stocklens_session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${age}${secureCookies && req.headers.host === publicHost ? '; Secure' : ''}`;
   const send = (res, status, data) => {res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });res.end(JSON.stringify(data));};
-  const userData = async (user) => {const row = user ? await db.get('SELECT data,revision FROM user_state WHERE user_id=?', [user.id]) : null;return { user, state: row ? JSON.parse(row.data) : null, revision: row?.revision ?? null };};
+  const userData = async (user) => {
+    const row=user?await db.get('SELECT data,revision FROM user_state WHERE user_id=?',[user.id]):null;
+    const setup=user?await db.get('SELECT status,completed_at FROM user_onboarding WHERE user_id=?',[user.id]):null;
+    return {user,state:row?JSON.parse(row.data):null,revision:row?.revision??null,onboarding:user?{needed:setup?.status==='pending',status:setup?.status||'legacy',completedAt:setup?.completed_at??null}:null};
+  };
   async function currentUser(req) {
     const token = tokenFrom(req);if (!/^[a-f0-9]{64}$/.test(token)) return null;
-    return (await db.get('SELECT u.id,u.email,u.name FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?', [tokenHash(token), Date.now()])) || null;
+    const user=await db.get('SELECT u.id,u.email,u.name,d.last_seen_at FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN session_devices d ON d.token_hash=s.token_hash WHERE s.token_hash=? AND s.expires_at>?',[tokenHash(token),Date.now()]);
+    if(!user)return null;
+    if(!user.last_seen_at||user.last_seen_at<Date.now()-60000)await db.run('UPDATE session_devices SET last_seen_at=? WHERE token_hash=? AND (last_seen_at IS NULL OR last_seen_at<?)',[Date.now(),tokenHash(token),Date.now()-60000]);
+    return {id:user.id,email:user.email,name:user.name};
   }
   async function limit(req,email){await authLimiter.consume({peerAddress:req.socket.remoteAddress||'unknown',forwardedFor:req.headers['x-forwarded-for'],email});}
   async function checkPassword(user, password) {
@@ -160,6 +167,10 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
     await tx.run('DELETE FROM sessions WHERE expires_at<=? OR token_hash=?',[Date.now(),tokenHash(tokenFrom(req))]);
     const token=randomBytes(32).toString('hex');
     await tx.run('INSERT INTO sessions VALUES(?,?,?)',[tokenHash(token),userId,Date.now()+SESSION_AGE]);
+    const ua=String(req.headers['user-agent']||'').slice(0,512);
+    const browser=/Edg\//.test(ua)?'Edge':/Firefox\//.test(ua)?'Firefox':/Chrome\/|CriOS\//.test(ua)?'Chrome':/Safari\//.test(ua)?'Safari':'เบราว์เซอร์';
+    const os=/iPhone|iPad/.test(ua)?'iPhone/iPad':/Android/.test(ua)?'Android':/Windows/.test(ua)?'Windows':/Macintosh|Mac OS/.test(ua)?'Mac':/Linux/.test(ua)?'Linux':'ไม่ระบุระบบ';
+    await tx.run('INSERT INTO session_devices VALUES(?,?,?,?,?)',[tokenHash(token),randomUUID(),browser+' · '+os,Date.now(),Date.now()]);
     return token;
   }
   const server = http.createServer(async (req, res) => {
@@ -273,6 +284,47 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
       if (pathname === '/api/session' && req.method === 'GET') {
         return send(res, 200, await userData(await currentUser(req)));
       }
+      if(pathname==='/api/sessions'&&req.method==='GET'){
+        const user=await currentUser(req);if(!user)fail(401,'กรุณาเข้าสู่ระบบ');
+        const rows=await db.all('SELECT d.id,d.name,d.created_at,d.last_seen_at,s.expires_at,s.token_hash FROM sessions s JOIN session_devices d ON d.token_hash=s.token_hash WHERE s.user_id=? AND s.expires_at>? ORDER BY (s.token_hash=?) DESC,d.last_seen_at DESC',[user.id,Date.now(),tokenHash(tokenFrom(req))]);
+        if((await currentUser(req))?.id!==user.id)fail(401,'เซสชันหมดอายุ');
+        return send(res,200,{sessions:rows.map(row=>({id:row.id,name:row.name,createdAt:row.created_at,lastSeenAt:row.last_seen_at,expiresAt:row.expires_at,current:row.token_hash===tokenHash(tokenFrom(req))}))});
+      }
+      if(['/api/sessions/revoke','/api/sessions/revoke-others'].includes(pathname)&&req.method==='POST'){
+        const user=await currentUser(req);if(!user)fail(401,'กรุณาเข้าสู่ระบบ');const input=await body(req),others=pathname.endsWith('revoke-others');
+        if(!others&&(typeof input.id!=='string'||input.id.length>64))fail(400,'เลือกอุปกรณ์ที่ต้องการออกจากระบบ');
+        const result=await db.transaction(async tx=>{
+          await requireSession(tx,req,user.id);
+          if(others){const removed=await tx.run('DELETE FROM sessions WHERE user_id=? AND token_hash<>?',[user.id,tokenHash(tokenFrom(req))]);return {revoked:Number(removed.changes),currentRevoked:false};}
+          const target=await tx.get('SELECT s.token_hash FROM sessions s JOIN session_devices d ON d.token_hash=s.token_hash WHERE d.id=? AND s.user_id=? AND s.expires_at>?',[input.id,user.id,Date.now()]);
+          if(!target)fail(404,'ไม่พบอุปกรณ์ที่ยังเข้าสู่ระบบ');
+          await tx.run('DELETE FROM sessions WHERE token_hash=? AND user_id=?',[target.token_hash,user.id]);
+          return {revoked:1,currentRevoked:target.token_hash===tokenHash(tokenFrom(req))};
+        });
+        if(result.currentRevoked)res.setHeader('Set-Cookie',cookie('',0,req));
+        return send(res,200,{ok:true,...result});
+      }
+      if(pathname==='/api/onboarding'&&req.method==='POST'){
+        const user=await currentUser(req);if(!user)fail(401,'กรุณาเข้าสู่ระบบ');const input=await body(req);
+        if(input.userId!==user.id)fail(409,'บัญชีเปลี่ยนไป กรุณาเข้าสู่ระบบใหม่');
+        if(!['skip','complete'].includes(input.action))fail(400,'เลือกบันทึกหรือข้ามการตั้งค่า');
+        const next=input.action==='complete'?validateState(input.state):null;
+        if(next&&(!Number.isSafeInteger(input.revision)||input.revision<0))fail(400,'เวอร์ชันข้อมูลไม่ถูกต้อง');
+        await db.transaction(async tx=>{
+          await requireSession(tx,req,user.id);
+          if(next){
+            const previous=await tx.get('SELECT data FROM user_state WHERE user_id=?',[user.id]);
+            if(quoteApiKey)for(const symbol of next.watchlist){
+              if(JSON.parse(previous.data).watchlist.includes(symbol))continue;const feed=marketFeeds.find(f=>f.symbol===symbol);
+              if(feed&&next.sources.length<100&&!next.sources.some(s=>s.url===feed.url))next.sources.push({id:randomUUID(),name:feed.name,url:feed.url,symbol:feed.symbol,type:'finance',enabled:true});
+            }
+            const changed=await tx.run('UPDATE user_state SET data=?,revision=revision+1 WHERE user_id=? AND revision=?',[JSON.stringify(next),user.id,input.revision]);
+            if(!changed.changes)fail(409,'ข้อมูลเปลี่ยนจากแท็บอื่นแล้ว กรุณาโหลดข้อมูลล่าสุดก่อนบันทึก');
+          }
+          await tx.run('INSERT INTO user_onboarding VALUES(?,?,?) ON CONFLICT(user_id) DO UPDATE SET status=excluded.status,completed_at=excluded.completed_at',[user.id,next?'completed':'skipped',Date.now()]);
+        });
+        return send(res,200,await userData(user));
+      }
       if (pathname === '/api/register' && req.method === 'POST') {
         const input = await body(req);
         const email = typeof input.email === 'string' ? input.email.trim().toLowerCase() : '';
@@ -286,6 +338,7 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
           if(await tx.get('SELECT id FROM users WHERE email=?',[email]))fail(409,'อีเมลนี้ถูกใช้แล้ว กรุณาเข้าสู่ระบบ');
           await tx.run('INSERT INTO users VALUES(?,?,?,?,?,?)', [id, email, name, salt, hash, Date.now()]);
           await tx.run('INSERT INTO user_state(user_id,data) VALUES(?,?)', [id, JSON.stringify(initialState(!!quoteApiKey))]);
+          await tx.run('INSERT INTO user_onboarding VALUES(?,?,NULL)',[id,'pending']);
           if (quoteApiKey) await tx.run('INSERT INTO market_feed_migrations VALUES(?)', [id]);
           await tx.run('INSERT INTO recovery_codes VALUES(?,?)', [id, tokenHash(recoveryCode)]);});
 
@@ -340,8 +393,16 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
         const user = await currentUser(req);if (!user) fail(401, 'กรุณาเข้าสู่ระบบ');
         const input = await body(req);
         if (!(await currentUser(req)) || (await currentUser(req)).id !== user.id) fail(401, 'เซสชันหมดอายุ');
-        try {return send(res, 200, await push.subscribe(user.id, input));}
-        catch (error) {fail(error.message === 'Push is not configured' ? 503 : 400, 'ข้อมูล Push ไม่ถูกต้องหรือยังไม่ได้ตั้งค่า');}
+        try {
+          const result=await db.transaction(async tx=>{
+            await requireSession(tx,req,user.id);
+            const status=await push.subscribe(user.id,input,{connection:tx});
+            const subscription=await tx.get('SELECT id FROM push_subscriptions WHERE user_id=? AND endpoint=?',[user.id,input.endpoint]);
+            await tx.run('INSERT INTO session_push VALUES(?,?) ON CONFLICT(subscription_id) DO UPDATE SET session_hash=excluded.session_hash',[subscription.id,tokenHash(tokenFrom(req))]);
+            return status;
+          });return send(res,200,result);
+        }
+        catch (error) {if(error.status===401)throw error;fail(error.message === 'Push is not configured' ? 503 : 400, 'ข้อมูล Push ไม่ถูกต้องหรือยังไม่ได้ตั้งค่า');}
       }
       if (pathname === '/api/push/unsubscribe' && req.method === 'POST') {
         const user = await currentUser(req);if (!user) fail(401, 'กรุณาเข้าสู่ระบบ');
@@ -486,7 +547,7 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
         res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'public, max-age=86400' });
         return res.end(req.method === 'HEAD' ? undefined : data);
       }
-      const assets = { '/icons.js': ['icons.js','text/javascript'], '/vendor/external-link.svg': ['vendor/external-link.svg','image/svg+xml'], '/quotes-ui.js': ['quotes-ui.js', 'text/javascript'], '/': ['index.html', 'text/html'], '/index.html': ['index.html', 'text/html'], '/verify-email.html': ['verify-email.html', 'text/html'], '/verify-email.js': ['verify-email.js', 'text/javascript'], '/app.js': ['app.js', 'text/javascript'], '/research-ui.js': ['research-ui.js', 'text/javascript'], '/auth.js': ['auth.js', 'text/javascript'], '/security-ui.js': ['security-ui.js', 'text/javascript'], '/push-ui.js': ['push-ui.js', 'text/javascript'], '/styles.css': ['styles.css', 'text/css'], '/theme.css': ['theme.css', 'text/css'], '/logo.css': ['logo.css', 'text/css'], '/features.css': ['features.css', 'text/css'], '/ui-polish.css': ['ui-polish.css', 'text/css'], '/catalog.js': ['catalog.js', 'text/javascript'], '/company-icons.js': ['company-icons.js', 'text/javascript'], '/pwa.js': ['pwa.js', 'text/javascript'], '/sw.js': ['sw.js', 'text/javascript'], '/manifest.webmanifest': ['manifest.webmanifest', 'application/manifest+json'], '/offline.html': ['offline.html', 'text/html'], '/icon.svg': ['icon.svg', 'image/svg+xml'], '/icon-192.png': ['icon-192.png', 'image/png'], '/icon-512.png': ['icon-512.png', 'image/png'], '/apple-touch-icon.png': ['apple-touch-icon.png', 'image/png'] };
+      const assets = { '/account-ui.js': ['account-ui.js', 'text/javascript; charset=utf-8'], '/icons.js': ['icons.js','text/javascript'], '/vendor/external-link.svg': ['vendor/external-link.svg','image/svg+xml'], '/quotes-ui.js': ['quotes-ui.js', 'text/javascript'], '/': ['index.html', 'text/html'], '/index.html': ['index.html', 'text/html'], '/verify-email.html': ['verify-email.html', 'text/html'], '/verify-email.js': ['verify-email.js', 'text/javascript'], '/app.js': ['app.js', 'text/javascript'], '/research-ui.js': ['research-ui.js', 'text/javascript'], '/auth.js': ['auth.js', 'text/javascript'], '/security-ui.js': ['security-ui.js', 'text/javascript'], '/push-ui.js': ['push-ui.js', 'text/javascript'], '/styles.css': ['styles.css', 'text/css'], '/theme.css': ['theme.css', 'text/css'], '/logo.css': ['logo.css', 'text/css'], '/features.css': ['features.css', 'text/css'], '/ui-polish.css': ['ui-polish.css', 'text/css'], '/catalog.js': ['catalog.js', 'text/javascript'], '/company-icons.js': ['company-icons.js', 'text/javascript'], '/pwa.js': ['pwa.js', 'text/javascript'], '/sw.js': ['sw.js', 'text/javascript'], '/manifest.webmanifest': ['manifest.webmanifest', 'application/manifest+json'], '/offline.html': ['offline.html', 'text/html'], '/icon.svg': ['icon.svg', 'image/svg+xml'], '/icon-192.png': ['icon-192.png', 'image/png'], '/icon-512.png': ['icon-512.png', 'image/png'], '/apple-touch-icon.png': ['apple-touch-icon.png', 'image/png'] };
       const asset = assets[pathname];if (!asset || !['GET', 'HEAD'].includes(req.method)) fail(404, 'ไม่พบหน้าเว็บ');
       const data = readFileSync(path.join(root, 'dist', asset[0]));res.writeHead(200, { 'Content-Type': asset[1] + '; charset=utf-8' });res.end(req.method === 'HEAD' ? undefined : data);
     } catch (error) {send(res, error.status || 500, { error: error.status ? error.message : 'ระบบขัดข้อง กรุณาลองใหม่' });if (!error.status) console.error('StockLens request failed');}

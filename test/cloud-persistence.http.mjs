@@ -60,7 +60,7 @@ test('concurrent remote MFA activation never clears an activated secret',async()
 test('cloud account, session and watchlist survive application replacement', async () => {
   const databaseUrl = process.env.TEST_DATABASE_URL || 'http://127.0.0.1:18080';
   assert.ok(['localhost', '127.0.0.1'].includes(new URL(databaseUrl).hostname));
-  const config = { databasePath: ':memory:', databaseUrl, authToken: 'local-test-only' };
+  const config = { databasePath: ':memory:', databaseUrl, authToken: 'local-test-only',pushPublicKey:'test-public',pushPrivateKey:'test-private',pushSubject:'mailto:cloud-test@example.com',pushSender:async()=>{} };
   let server, base;
   async function start() {server = await createApp(config);server.listen(0, '127.0.0.1');await once(server, 'listening');base = `http://127.0.0.1:${server.address().port}`;}
   async function stop() {if (!server) return;await server.shutdown();server = null;}
@@ -74,9 +74,17 @@ test('cloud account, session and watchlist survive application replacement', asy
     const save = () => fetch(base + '/api/state', { method: 'PUT', headers: { Origin: base, 'Content-Type': 'application/json', Cookie: cookie }, body: JSON.stringify({ userId: account.user.id, revision: account.revision, state: account.state }) });
     const simultaneous = await Promise.all([save(), save()]);
     assert.deepEqual(simultaneous.map((r) => r.status).sort(), [200, 409]);
+    const setup=await post('/api/onboarding',{action:'complete',userId:account.user.id,revision:1,state:account.state},cookie);assert.equal(setup.status,200);
+    const other=await post('/api/login',credentials),otherCookie=other.headers.get('set-cookie').split(';')[0];
+    const subscription={endpoint:'https://fcm.googleapis.com/fcm/send/cloud-session-'+randomUUID(),keys:{p256dh:Buffer.alloc(65,7).toString('base64url'),auth:Buffer.alloc(16,3).toString('base64url')}};
+    assert.equal((await post('/api/push/subscribe',subscription,otherCookie)).status,200);
     await stop();await start();
     const session = await (await fetch(base + '/api/session', { headers: { Cookie: cookie } })).json();
-    assert.deepEqual(session.state?.watchlist, ['AAPL']);assert.equal(session.revision, 1);
+    assert.deepEqual(session.state?.watchlist, ['AAPL']);assert.equal(session.revision, 2);assert.equal(session.onboarding.status,'completed');
+    const devices=await (await fetch(base+'/api/sessions',{headers:{Cookie:cookie}})).json();assert.equal(devices.sessions.length,2);
+    assert.equal((await post('/api/sessions/revoke-others',{},cookie)).status,200);
+    assert.equal((await (await fetch(base+'/api/session',{headers:{Cookie:otherCookie}})).json()).user,null);
+    assert.equal((await (await fetch(base+'/api/push/status',{headers:{Cookie:cookie}})).json()).subscriptions,0);
   } finally {
     if (server && cookie) await post('/api/account/delete', { ...credentials, confirm: credentials.email }, cookie);
     await stop();

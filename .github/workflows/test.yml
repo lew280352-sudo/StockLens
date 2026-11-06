@@ -22,6 +22,9 @@ jobs:
       - run: npm run test:reference-ui
         env:
           REFERENCE_ARTIFACT_DIR: artifacts/reference
+      - run: npm run test:account-ui
+        env:
+          ACCOUNT_ARTIFACT_DIR: artifacts/account
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -29,6 +32,7 @@ jobs:
           path: |
             artifacts/responsive
             artifacts/reference
+            artifacts/account
           if-no-files-found: ignore
       - run: npm run test:research-ui
       - run: npm run test:security-ui

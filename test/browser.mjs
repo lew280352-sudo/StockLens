@@ -1,4 +1,4 @@
-import {navigateUI} from './navigation.mjs';
+import {navigateUI,skipFirstUse} from './navigation.mjs';
 import { chromium } from 'playwright';
 import { once } from 'node:events';
 import { mkdtempSync } from 'node:fs';
@@ -21,7 +21,7 @@ try {
   await page.locator('#register-form [type=submit]').click();await page.waitForFunction(() => document.querySelector('#auth-error').textContent.includes('ไม่ตรงกัน'));
   await page.locator('[name=confirm]').fill('strong-test-password');await page.locator('#register-form [type=submit]').click();await page.waitForSelector('#login-form');
   await page.locator('[name=password]').fill('wrong-password');await page.locator('#login-form [type=submit]').click();await page.waitForFunction(() => document.querySelector('#auth-error').textContent.includes('ไม่ถูกต้อง'));
-  await page.locator('[name=password]').fill('strong-test-password');await page.locator('#login-form [type=submit]').click();await page.waitForSelector('body:not(.signed-out)');
+  await page.locator('[name=password]').fill('strong-test-password');await page.locator('#login-form [type=submit]').click();await page.waitForSelector('body:not(.signed-out)');await skipFirstUse(page);
   await page.locator('[data-action=add]').first().click();await page.locator('#following-form [name=symbol]').selectOption('AAPL');await page.locator('#following-form [type=submit]').click();await page.waitForSelector('#modal:not([open])', { state: 'attached' });
   await page.screenshot({ path: path.join(artifactDir, 'dashboard-desktop.png'), fullPage: true });
   await navigateUI(page,'sources');await page.waitForSelector('#source-form');
@@ -31,7 +31,7 @@ try {
   await page.locator('#source-preset-query').fill('');
   assert.equal(await page.locator('.source-entry').count(), 4);
   await page.locator('#source-form [name=name]').fill('Example News');await page.locator('#source-form [name=url]').fill('https://example.com/news');await page.locator('#source-form [type=submit]').click();await page.waitForFunction(() => document.querySelectorAll('.source-entry').length === 5);
-  await page.reload();await page.waitForSelector('body:not(.signed-out)');await navigateUI(page,'sources');assert.equal(await page.locator('.source-entry').count(), 5);
+  await page.reload();await page.waitForSelector('body:not(.signed-out)');await skipFirstUse(page);await navigateUI(page,'sources');assert.equal(await page.locator('.source-entry').count(), 5);
   await page.locator('#source-form [name=name]').fill('Duplicate');await page.locator('#source-form [name=url]').fill('https://example.com/news');await page.locator('#source-form [type=submit]').click();await page.waitForFunction(() => document.querySelector('#source-error').textContent.includes('มี URL'));
   await page.screenshot({ path: path.join(artifactDir, 'sources-desktop.png'), fullPage: true });
   await page.locator('.source-entry').last().locator('.remove').click();await page.locator('[data-source-confirm]').click();await page.waitForFunction(() => document.querySelectorAll('.source-entry').length === 4);
@@ -72,12 +72,12 @@ try {
   await page.evaluate(() => fetch('/api/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }));
   await navigateUI(page,'sources');await page.locator('#source-form [name=name]').fill('Expired session source');await page.locator('#source-form [name=url]').fill('https://example.com/expired');await page.locator('#source-form [type=submit]').click();await page.waitForSelector('#login-form');
   assert.equal(await page.locator('#main').innerHTML(), '');
-  await page.locator('[name=email]').fill('ui@example.com');await page.locator('[name=password]').fill('strong-test-password');await page.locator('#login-form [type=submit]').click();await page.waitForSelector('body:not(.signed-out)');
+  await page.locator('[name=email]').fill('ui@example.com');await page.locator('[name=password]').fill('strong-test-password');await page.locator('#login-form [type=submit]').click();await page.waitForSelector('body:not(.signed-out)');await skipFirstUse(page);
   await page.evaluate(()=>toast('ข่าวส่วนตัว PRIVATE-MSFT'));await page.locator('.topbar [data-logout]').click();await page.waitForSelector('#login-form');
   assert.equal(await page.locator('#main').innerHTML(), '');assert.doesNotMatch(await page.locator('#toast').innerText(),/PRIVATE-MSFT/);await page.reload();await page.waitForSelector('#login-form');
   await page.setViewportSize({ width: 390, height: 844 });await page.locator('[data-auth-mode=register]').first().click();await page.screenshot({ path: path.join(artifactDir, 'register-mobile.png'), fullPage: true });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
-  await page.locator('[data-auth-mode=login]').first().click();await page.locator('[name=email]').fill('ui@example.com');await page.locator('[name=password]').fill('strong-test-password');await page.locator('#login-form [type=submit]').click();await page.waitForSelector('body:not(.signed-out)');
+  await page.locator('[data-auth-mode=login]').first().click();await page.locator('[name=email]').fill('ui@example.com');await page.locator('[name=password]').fill('strong-test-password');await page.locator('#login-form [type=submit]').click();await page.waitForSelector('body:not(.signed-out)');await skipFirstUse(page);
   await page.screenshot({ path: path.join(artifactDir, 'dashboard-mobile.png'), fullPage: true });assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   await page.locator('.topbar [data-page=sources]').click();await page.waitForSelector('#source-form');assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   await page.locator('.topbar [data-logout]').click();await page.waitForSelector('#login-form');

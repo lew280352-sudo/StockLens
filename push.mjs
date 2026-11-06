@@ -19,14 +19,14 @@ export async function createPushService(db, { publicKey = '', privateKey = '', s
   await db.exec(["CREATE INDEX IF NOT EXISTS push_user ON push_subscriptions(user_id)"]);
   const configured = !!(publicKey && privateKey && /^https:\/\/|^mailto:/i.test(subject));
   const vapidDetails = { subject, publicKey, privateKey };
-  async function status(userId) {return { configured, publicKey: configured ? publicKey : null, subscriptions: (await db.get('SELECT COUNT(*) AS total FROM push_subscriptions WHERE user_id=?', [userId])).total };}
-  async function subscribe(userId, input) {
+  async function status(userId,connection=db) {return { configured, publicKey: configured ? publicKey : null, subscriptions: (await connection.get('SELECT COUNT(*) AS total FROM push_subscriptions WHERE user_id=?', [userId])).total };}
+  async function subscribe(userId, input,{connection=db}={}) {
     if (!configured) throw new Error('Push is not configured');
     const subscription = validatePushSubscription(input),id = endpointId(subscription.endpoint);
-    const count = (await db.get('SELECT COUNT(*) AS total FROM push_subscriptions WHERE user_id=? AND id<>?', [userId, id])).total;
+    const count = (await connection.get('SELECT COUNT(*) AS total FROM push_subscriptions WHERE user_id=? AND id<>?', [userId, id])).total;
     if (count >= 5) throw new Error('Maximum five push devices');
-    await db.run('INSERT INTO push_subscriptions VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET user_id=excluded.user_id,p256dh=excluded.p256dh,auth=excluded.auth,last_sent_at=excluded.last_sent_at', [id, userId, subscription.endpoint, subscription.keys.p256dh, subscription.keys.auth, now(), now()]);
-    return await status(userId);
+    await connection.run('INSERT INTO push_subscriptions VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET user_id=excluded.user_id,p256dh=excluded.p256dh,auth=excluded.auth,last_sent_at=excluded.last_sent_at', [id, userId, subscription.endpoint, subscription.keys.p256dh, subscription.keys.auth, now(), now()]);
+    return await status(userId,connection);
   }
   async function unsubscribe(userId, endpoint) {
     if (typeof endpoint !== 'string' || endpoint.length > 4096) return false;

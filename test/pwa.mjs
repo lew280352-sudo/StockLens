@@ -1,4 +1,4 @@
-import {navigateUI} from './navigation.mjs';
+import {navigateUI,skipFirstUse} from './navigation.mjs';
 import { chromium } from 'playwright';
 import { once } from 'node:events';
 import { mkdtempSync } from 'node:fs';
@@ -23,7 +23,7 @@ try {
   await page.evaluate(() => navigator.serviceWorker.ready);await page.reload();await page.waitForFunction(() => !!navigator.serviceWorker.controller);
   await page.locator('[name=name]').fill('PWA Test');await page.locator('[name=email]').fill('pwa@example.com');await page.locator('[name=password]').fill('pwa-original-password');await page.locator('[name=confirm]').fill('pwa-original-password');await page.locator('#register-form [type=submit]').click();await page.waitForSelector('#login-form');
   const code = await page.locator('[aria-label="รหัสกู้คืน"]').inputValue();assert.equal(code.length, 48);
-  await page.locator('#login-form [name=password]').fill('pwa-original-password');await page.locator('#login-form [type=submit]').click();await page.waitForSelector('.news-card');
+  await page.locator('#login-form [name=password]').fill('pwa-original-password');await page.locator('#login-form [type=submit]').click();await skipFirstUse(page);await page.waitForSelector('.news-card');
   assert.equal(await page.locator('.news-card').count(), feeds.length);assert.equal(await page.locator('.news-card img').count(), feeds.filter(f=>companyIcons[f.symbol]).length);
   assert.equal(await page.locator('.news-card img').first().evaluate((img) => img.complete && img.naturalWidth > 0), true);
   await page.locator('[data-action=add]').first().click();await page.locator('#following-form [name=symbol]').selectOption('AAPL');await page.locator('#following-form [type=submit]').click();await page.waitForSelector('#modal:not([open])', { state: 'attached' });
