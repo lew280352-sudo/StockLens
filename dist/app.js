@@ -82,7 +82,7 @@ function aiProviderLabel(provider){return {gemini:'Gemini',groq:'Groq',ollama:'O
 function aiCard(){
  const result=aiSummaries[selectedStock],available=aiStatus.enabled&&aiStatus.available,brief=result?.generated===false,label=aiProviderLabel(aiStatus.provider);
  const status=available?`${label} พร้อมใช้`:'อ่านข่าวฟรีได้';
- const reason={selected:'คุณเลือกโหมดรวมหัวข้อข่าว',not_configured:'ยังไม่ได้เชื่อมบริการ AI',disabled:'ปิดการสรุปด้วย AI ไว้',quota:'โควตา AI หมดชั่วคราว',credentials:'บริการ AI ปฏิเสธสิทธิ์การเข้าถึง',model_missing:'โมเดล AI นี้ยังใช้ไม่ได้',provider_unavailable:'เชื่อมต่อบริการ AI ไม่สำเร็จ'};
+ const reason={selected:'คุณเลือกโหมดรวมหัวข้อข่าว',not_configured:'ยังไม่ได้เชื่อมบริการ AI',disabled:'ปิดการสรุปด้วย AI ไว้',quota:'โควตา AI หมดชั่วคราว',credentials:'บริการ AI ปฏิเสธสิทธิ์การเข้าถึง',model_missing:'โมเดล AI นี้ยังใช้ไม่ได้',provider_unavailable:'เชื่อมต่อบริการ AI ไม่สำเร็จ',invalid_output:'AI ส่งคำตอบไม่ครบหรือรูปแบบไม่ถูกต้อง ลองสรุปใหม่ได้',request_rejected:'บริการ AI ไม่รับคำขอสรุปนี้',reasoning_unsupported:'โมเดลนี้ยังไม่รองรับการตั้งค่าสรุป',schema_unsupported:'โมเดลนี้ยังตอบรูปแบบสรุปไม่ได้'};
  const sources=result?.articles?.map(item=>`<a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.source)} · ${escapeHtml(item.title)}<small>เผยแพร่ ${escapeHtml(dateLabel(item.publishedAt))}${item.stale?' · ข้อมูลเก่า / อัปเดตไม่สำเร็จ':''}</small></a>`).join('');
  const latest=result?.articles?.map(item=>Date.parse(item.publishedAt)).filter(Number.isFinite).sort((a,b)=>b-a)[0];
  const answers=aiAnswers[selectedStock]||[];
