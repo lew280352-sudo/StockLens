@@ -258,7 +258,7 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
         let result;try {result = input.mode === 'headlines' ? headlineBrief(symbol, articles, 'selected') : await ai.summarize(symbol, articles);}
         catch (error) {
           if (error.code === 'no_news') fail(422, 'ยังไม่มีหัวข้อข่าวสำหรับหุ้นนี้ กรุณาเปิดแหล่งข่าวที่เกี่ยวข้อง');
-          result = headlineBrief(symbol, articles, ['disabled', 'not_configured', 'quota', 'credentials', 'model_missing'].includes(error.code) ? error.code : 'provider_unavailable');
+          result = headlineBrief(symbol, articles, ['disabled', 'not_configured', 'quota', 'credentials', 'model_missing', 'invalid_output', 'request_rejected', 'reasoning_unsupported', 'schema_unsupported'].includes(error.code) ? error.code : 'provider_unavailable');
         }
         if ((await currentUser(req))?.id !== user.id) fail(401, 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
         return send(res, 200, result);

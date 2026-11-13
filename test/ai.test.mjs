@@ -97,11 +97,30 @@ test('Groq online AI keeps the key in server headers and requests strict structu
   const item = { id: 'ms-one', symbol: 'MSFT', source: 'Microsoft News', title: 'Microsoft announces a new service', url: 'https://news.microsoft.com/example', publishedAt: '2026-10-20T00:00:00.000Z', stale: false };
   const result = await ai.summarize('MSFT', [item]);
   assert.equal(result.provider, 'groq');assert.equal(request.response_format.type, 'json_schema');assert.equal(request.response_format.json_schema.strict, true);assert.equal(request.reasoning_effort, 'none');
+  assert.equal(request.max_completion_tokens, 2400, 'Thai structured summaries need enough output space');
   assert.doesNotMatch(JSON.stringify(result), /test-secret-key/);
   const missingDb = await openDatabase({ databasePath: ':memory:' }),missing = await createAiService(missingDb, { provider: 'groq' });
   assert.equal((await missing.status()).configured, false);
   await assert.rejects(() => missing.summarize('MSFT', [item]), (error) => error.code === 'not_configured');
   missing.close();missingDb.close();ai.close();await db.close();
+});
+
+test('Groq rejects truncated JSON and classifies provider errors without exposing their contents', async () => {
+  const db = await openDatabase({databasePath: ':memory:'});
+  const articles = [{id: 'one', symbol: 'AAPL', source: 'Apple', title: 'Product news', url: 'https://www.apple.com/'}];
+  try {
+    const cases = [
+      [Response.json({choices: [{finish_reason: 'length', message: {content: '{"title":"truncated"'}}]}), 'invalid_output'],
+      [Response.json({error: {code: 'json_validate_failed', message: 'secret-provider-details'}}, {status: 400}), 'invalid_output'],
+      [Response.json({error: {message: 'reasoning_effort secret-provider-details'}}, {status: 400}), 'reasoning_unsupported'],
+      [Response.json({error: {message: 'response_format json_schema secret-provider-details'}}, {status: 400}), 'schema_unsupported'],
+      [Response.json({error: {message: 'secret-provider-details'}}, {status: 400}), 'request_rejected']
+    ];
+    for (const [response, code] of cases) {
+      const ai = await createAiService(db, {provider: 'groq', apiKey: 'secret-key', fetcher: async () => response});
+      await assert.rejects(() => ai.summarize('AAPL', articles), error => error.code === code && !/secret/.test(error.message));ai.close();
+    }
+  } finally {await db.close();}
 });
 
 test('auto AI falls back from an unavailable online provider to local AI', async () => {
