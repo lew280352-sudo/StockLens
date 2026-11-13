@@ -34,7 +34,7 @@ test('Gemini keeps keys in headers, uses grounded JSON, caches and enforces a pe
     const answer = await ai.ask('AAPL', 'มีข่าวอะไร?', [sample]);assert.deepEqual(answer.sources.map(item => item.id), ['one']);assert.equal(calls, 2);
     ai.close();const restarted = await createAiService(db, options);
     assert.equal((await restarted.summarize('AAPL', [sample])).cached, true);
-    await assert.rejects(() => restarted.ask('AAPL', 'ถามซ้ำได้ไหม?', [sample]), error => error.code === 'quota');assert.equal(calls, 2);restarted.close();
+    await assert.rejects(() => restarted.ask('AAPL', 'ถามซ้ำได้ไหม?', [sample]), error => error.code === 'quota' && error.quotaSource === 'app' && Date.parse(error.retryAt) > Date.now());assert.equal(calls, 2);restarted.close();
   } finally {ai.close();await db.close();}
 });
 
@@ -120,6 +120,8 @@ test('Groq rejects truncated JSON and classifies provider errors without exposin
       const ai = await createAiService(db, {provider: 'groq', apiKey: 'secret-key', fetcher: async () => response});
       await assert.rejects(() => ai.summarize('AAPL', articles), error => error.code === code && !/secret/.test(error.message));ai.close();
     }
+    const limited = await createAiService(db, {provider: 'groq', apiKey: 'secret-key', fetcher: async () => Response.json({error: {message: 'secret-provider-details'}}, {status: 429, headers: {'retry-after': '15'}})});
+    await assert.rejects(() => limited.summarize('AAPL', articles), error => error.code === 'quota' && error.quotaSource === 'provider' && Date.parse(error.retryAt) > Date.now());limited.close();
   } finally {await db.close();}
 });
 

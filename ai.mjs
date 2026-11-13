@@ -44,6 +44,11 @@ async function jsonResponse(response, label, limit = 256 * 1024) {
     let detail;try {detail = JSON.parse(raw).error;} catch {}
     const error = new Error(`${label} HTTP ${response.status}`);
     error.code = response.status === 429 ? 'quota' : [401, 403].includes(response.status) ? 'credentials' : response.status === 404 ? 'model_missing' : response.status === 400 ? 'request_rejected' : 'provider_unavailable';
+    if (response.status === 429) {
+      error.quotaSource = 'provider';
+      const seconds = Number(response.headers.get('retry-after'));
+      if (Number.isFinite(seconds) && seconds > 0 && seconds <= 86400) error.retryAt = new Date(Date.now() + Math.ceil(seconds) * 1000).toISOString();
+    }
     if (response.status === 400 && detail?.code === 'json_validate_failed') error.code = 'invalid_output';
     if (response.status === 400 && /reasoning_effort/i.test(detail?.message || '')) error.code = 'reasoning_unsupported';
     if (response.status === 400 && /response_format|json_schema/i.test(detail?.message || '') && error.code !== 'invalid_output') error.code = 'schema_unsupported';
@@ -85,7 +90,7 @@ export async function createAiService(db, { enabled = true, provider = 'ollama',
     if (providerName !== 'ollama') {
       const day = new Date().toISOString().slice(0, 10);
       const reserved = await db.run('INSERT INTO ai_daily_usage VALUES(?,?,1) ON CONFLICT(provider,day) DO UPDATE SET calls=calls+1 WHERE calls<?', [providerName, day, dailyLimit]);
-      if (!reserved.changes) {const error = new Error('Daily AI request limit reached');error.code = 'quota';throw error;}
+      if (!reserved.changes) {const error = new Error('Daily AI request limit reached');error.code = 'quota';error.quotaSource = 'app';error.retryAt = new Date(Date.parse(day) + 86400000).toISOString();throw error;}
     }
     if (providerName === 'gemini') {
       const response = await fetcher(`${origin}/v1beta/models/${encodeURIComponent(modelName)}:generateContent`, {
@@ -178,7 +183,7 @@ export function createAiRouter(primary, fallback) {
       catch (error) {
         if (['disabled', 'no_news'].includes(error.code)) throw error;
         try {return { ...(await fallback.summarize(symbol, items)), fallbackFrom: 'groq' };}
-        catch {const unavailable = new Error('Online and local AI are unavailable');unavailable.code = ['quota', 'credentials', 'model_missing', 'not_configured'].includes(error.code) ? error.code : 'providers_unavailable';throw unavailable;}
+        catch {const unavailable = new Error('Online and local AI are unavailable');unavailable.code = ['quota', 'credentials', 'model_missing', 'not_configured'].includes(error.code) ? error.code : 'providers_unavailable';unavailable.quotaSource = error.quotaSource;unavailable.retryAt = error.retryAt;throw unavailable;}
       }
     },
     async ask(symbol, question, items) {
@@ -186,7 +191,7 @@ export function createAiRouter(primary, fallback) {
       catch (error) {
         if (['disabled', 'no_news'].includes(error.code)) throw error;
         try {return { ...(await fallback.ask(symbol, question, items)), fallbackFrom: 'groq' };}
-        catch {const unavailable = new Error('Online and local AI are unavailable');unavailable.code = ['quota', 'credentials', 'model_missing', 'not_configured'].includes(error.code) ? error.code : 'providers_unavailable';throw unavailable;}
+        catch {const unavailable = new Error('Online and local AI are unavailable');unavailable.code = ['quota', 'credentials', 'model_missing', 'not_configured'].includes(error.code) ? error.code : 'providers_unavailable';unavailable.quotaSource = error.quotaSource;unavailable.retryAt = error.retryAt;throw unavailable;}
       }
     },
     close() {primary.close();fallback.close();}
