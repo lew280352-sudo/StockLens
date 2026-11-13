@@ -13,7 +13,7 @@ import { feeds, verifiedFeeds, createNewsService } from './feeds.mjs';
 import { marketFeeds } from './market-news.mjs';
 import { createQuoteService } from './quotes.mjs';
 import { createForecastService } from './forecast.mjs';
-import { createAiRouter, createAiService } from './ai.mjs';
+import { aiConfiguration, headlineBrief, createAiRouter, createAiService } from './ai.mjs';
 import { createResearchService, validateResearchSymbol, validateResearchMonths } from './research.mjs';
 import { newTotpSecret, verifyTotp, encryptSecret, decryptSecret } from './security.mjs';
 import { createPushService } from './push.mjs';
@@ -64,7 +64,7 @@ async function passwordHash(password, salt) {return deriveKey(password, salt, 64
 const tokenHash = (token) => createHash('sha256').update(token).digest('hex');
 function tokenFrom(req) {return (req.headers.cookie || '').split(';').map((c) => c.trim()).find((c) => c.startsWith('stocklens_session='))?.slice(18) || '';}
 
-export async function createApp({ databasePath = path.join(root, '.data', 'stocklens.sqlite'), databaseUrl = '', authToken = '', trustedProxyHops = 0, hostingProfile = '', secureCookies = false, publicOrigin = null, refreshNews = false, newsFetcher = fetch, quoteApiKey = '', quoteFetcher = fetch, researchFetcher = fetch, historyApiKey = '', historyFetcher = fetch, aiEnabled = false, aiProvider = 'ollama', aiBaseUrl = 'http://127.0.0.1:11434', aiApiKey = '', aiModel, aiFallbackModel = 'qwen3:8b', aiFetcher = fetch, mfaKeyHex = '', pushPublicKey = '', pushPrivateKey = '', pushSubject = '', pushSender, emailOrigin = '', smtpHost = '', smtpPort = 587, smtpUser = '', smtpPass = '', smtpFrom = '', emailSender, emailLoginEnabled = false } = {}) {
+export async function createApp({ databasePath = path.join(root, '.data', 'stocklens.sqlite'), databaseUrl = '', authToken = '', trustedProxyHops = 0, hostingProfile = '', secureCookies = false, publicOrigin = null, refreshNews = false, newsFetcher = fetch, quoteApiKey = '', quoteFetcher = fetch, researchFetcher = fetch, historyApiKey = '', historyFetcher = fetch, aiEnabled = false, aiProvider = 'ollama', aiBaseUrl = 'http://127.0.0.1:11434', aiApiKey = '', aiModel, aiDailyLimit = 20, aiFallbackModel = 'qwen3:8b', aiFetcher = fetch, mfaKeyHex = '', pushPublicKey = '', pushPrivateKey = '', pushSubject = '', pushSender, emailOrigin = '', smtpHost = '', smtpPort = 587, smtpUser = '', smtpPass = '', smtpFrom = '', emailSender, emailLoginEnabled = false } = {}) {
   if (mfaKeyHex && !/^[a-f0-9]{64}$/i.test(mfaKeyHex)) throw new Error('MFA_ENCRYPTION_KEY must be 64 hex characters');
   const backgroundSleeps=hostingProfile==='render-free';
   if(backgroundSleeps){smtpHost='';emailSender=undefined;emailLoginEnabled=false;}
@@ -104,9 +104,9 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
   const email = await createEmailVerification(db, { origin: emailOrigin || publicOrigin || '', smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom, ...(emailSender ? { sender: emailSender } : {}) });
   const loginOtp = await createLoginOtp(db, { enabled: emailLoginEnabled, smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom, ...(emailSender ? { sender: emailSender } : {}) });
   const ai = aiProvider === 'hybrid' ? createAiRouter(await
-  createAiService(db, { enabled: aiEnabled, provider: 'groq', apiKey: aiApiKey, model: aiModel, fetcher: aiFetcher }), await
+  createAiService(db, { enabled: aiEnabled, provider: 'groq', apiKey: aiApiKey, model: aiModel, dailyLimit: aiDailyLimit, fetcher: aiFetcher }), await
   createAiService(db, { enabled: aiEnabled, provider: 'ollama', baseUrl: aiBaseUrl, model: aiFallbackModel, fetcher: aiFetcher })
-  ) : await createAiService(db, { enabled: aiEnabled, provider: aiProvider, baseUrl: aiBaseUrl, apiKey: aiApiKey, model: aiModel, fetcher: aiFetcher });
+  ) : await createAiService(db, { enabled: aiEnabled, provider: aiProvider, baseUrl: aiBaseUrl, apiKey: aiApiKey, model: aiModel, dailyLimit: aiDailyLimit, fetcher: aiFetcher });
   let newsTimer;
   const newRecoveryCode = () => randomBytes(24).toString('hex');
   const authLimiter=await createAuthLimiter(db,{trustedProxyHops});
@@ -188,7 +188,7 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
         const user = await currentUser(req);if (!user) fail(401, 'กรุณาเข้าสู่ระบบ');
         const result = await ai.status();
         if ((await currentUser(req))?.id !== user.id) fail(401, 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
-        return send(res, 200, result);
+        return send(res, 200, {...result, digestAvailable: true});
       }
       if (pathname === '/api/quotes' && req.method === 'GET') {
         const user = await currentUser(req);if (!user) fail(401, 'กรุณาเข้าสู่ระบบ');
@@ -236,7 +236,7 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
         if ((await currentUser(req))?.id !== user.id) fail(401, 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
         let summary = null,aiError = '';
         if (result.articles.length) {
-          try {summary = await ai.summarize(symbol, result.articles);} catch (error) {aiError = error.code === 'not_configured' ? 'ยังไม่ได้ตั้งค่า Groq API key' : error.code === 'disabled' ? 'AI ยังไม่เปิดใช้งาน' : 'AI สรุปไม่ได้ในขณะนี้ กรุณาลองใหม่';}
+          try {summary = await ai.summarize(symbol, result.articles);} catch (error) {aiError = error.code === 'not_configured' ? 'ยังไม่ได้เชื่อมบริการ AI' : error.code === 'disabled' ? 'AI ยังไม่เปิดใช้งาน' : 'AI สรุปไม่ได้ในขณะนี้ กรุณาลองใหม่';}
         }
         if ((await currentUser(req))?.id !== user.id) fail(401, 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
         return send(res, 200, { ...result, summary, aiError });
@@ -245,15 +245,20 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
         const user = await currentUser(req);if (!user) fail(401, 'กรุณาเข้าสู่ระบบ');
         const input = await body(req),symbol = typeof input.symbol === 'string' ? input.symbol.trim().toUpperCase() : '';
         if (!symbols.has(symbol)) fail(400, 'ไม่รองรับหุ้นนี้');
+        if (input.mode !== undefined && !['ai', 'headlines'].includes(input.mode)) fail(400, 'โหมดสรุปไม่ถูกต้อง');
+        limitAiQuestion(user);
+        // Refresh public feeds here too: the first summary must not race the news page.
+        const preferences = (await userData(user)).state;
+        await news.refreshFor(preferences.sources.filter(source => source.enabled).map(source => source.url), [symbol]);
+        if ((await currentUser(req))?.id !== user.id) fail(401, 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
         const snapshot = await news.snapshot(),sources = (await userData(user)).state.sources;
         const enabled = new Set(snapshot.sources.filter((feed) => sources.some((source) => source.enabled && source.url.replace(/\/$/, '') === feed.url.replace(/\/$/, ''))).map((feed) => feed.id));
-        let result;try {result = await ai.summarize(symbol, snapshot.items.filter((item) => enabled.has(item.feedId)));}
+        const articles = snapshot.items.filter(item => enabled.has(item.feedId));
+        if (!articles.some(item => item.symbol === symbol)) fail(422, 'ยังไม่มีหัวข้อข่าวสำหรับหุ้นนี้ กรุณาเปิดแหล่งข่าวที่เกี่ยวข้อง');
+        let result;try {result = input.mode === 'headlines' ? headlineBrief(symbol, articles, 'selected') : await ai.summarize(symbol, articles);}
         catch (error) {
-          if (error.code === 'disabled') fail(503, 'AI ยังไม่เปิดใช้');
-          if (error.code === 'not_configured') fail(503, 'ยังไม่ได้ตั้งค่า Groq API key');
           if (error.code === 'no_news') fail(422, 'ยังไม่มีหัวข้อข่าวสำหรับหุ้นนี้ กรุณาเปิดแหล่งข่าวที่เกี่ยวข้อง');
-          if (error.code === 'providers_unavailable') fail(503, 'Groq และ Ollama ยังไม่พร้อม ตรวจโควตา อินเทอร์เน็ต และ Ollama');
-          fail(503, aiProvider === 'groq' ? 'ติดต่อ Groq AI ไม่สำเร็จ ตรวจ API key โควตา และอินเทอร์เน็ต' : 'ติดต่อ AI ในเครื่องไม่สำเร็จ ตรวจว่าเปิด Ollama และติดตั้งโมเดลแล้ว');
+          result = headlineBrief(symbol, articles, ['disabled', 'not_configured', 'quota', 'credentials', 'model_missing'].includes(error.code) ? error.code : 'provider_unavailable');
         }
         if ((await currentUser(req))?.id !== user.id) fail(401, 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
         return send(res, 200, result);
@@ -274,7 +279,8 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
         let result;try {result = await ai.ask(symbol, question, articles);}
         catch (error) {
           if (error.code === 'disabled') fail(503, 'AI ยังไม่เปิดใช้');
-          if (error.code === 'not_configured') fail(503, 'ยังไม่ได้ตั้งค่า Groq API key');
+          if (error.code === 'not_configured') fail(503, 'ยังไม่ได้เชื่อมบริการ AI');
+          if (error.code === 'quota') fail(429, 'โควตา AI หมดชั่วคราว คุณยังรวมหัวข้อข่าวฟรีได้');
           if (error.code === 'providers_unavailable') fail(503, 'Groq และ Ollama ยังไม่พร้อม ตรวจโควตา อินเทอร์เน็ต และ Ollama');
           fail(503, 'ติดต่อ AI ไม่สำเร็จ กรุณาลองใหม่');
         }
@@ -547,7 +553,7 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
         res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'public, max-age=86400' });
         return res.end(req.method === 'HEAD' ? undefined : data);
       }
-      const assets = { '/account-ui.js': ['account-ui.js', 'text/javascript; charset=utf-8'], '/icons.js': ['icons.js','text/javascript'], '/vendor/external-link.svg': ['vendor/external-link.svg','image/svg+xml'], '/quotes-ui.js': ['quotes-ui.js', 'text/javascript'], '/': ['index.html', 'text/html'], '/index.html': ['index.html', 'text/html'], '/verify-email.html': ['verify-email.html', 'text/html'], '/verify-email.js': ['verify-email.js', 'text/javascript'], '/app.js': ['app.js', 'text/javascript'], '/research-ui.js': ['research-ui.js', 'text/javascript'], '/auth.js': ['auth.js', 'text/javascript'], '/security-ui.js': ['security-ui.js', 'text/javascript'], '/push-ui.js': ['push-ui.js', 'text/javascript'], '/styles.css': ['styles.css', 'text/css'], '/theme.css': ['theme.css', 'text/css'], '/logo.css': ['logo.css', 'text/css'], '/features.css': ['features.css', 'text/css'], '/ui-polish.css': ['ui-polish.css', 'text/css'], '/catalog.js': ['catalog.js', 'text/javascript'], '/company-icons.js': ['company-icons.js', 'text/javascript'], '/pwa.js': ['pwa.js', 'text/javascript'], '/sw.js': ['sw.js', 'text/javascript'], '/manifest.webmanifest': ['manifest.webmanifest', 'application/manifest+json'], '/offline.html': ['offline.html', 'text/html'], '/icon.svg': ['icon.svg', 'image/svg+xml'], '/icon-192.png': ['icon-192.png', 'image/png'], '/icon-512.png': ['icon-512.png', 'image/png'], '/apple-touch-icon.png': ['apple-touch-icon.png', 'image/png'] };
+      const assets = { '/appearance.js': ['appearance.js', 'text/javascript; charset=utf-8'], '/appearance.css': ['appearance.css', 'text/css; charset=utf-8'], '/account-ui.js': ['account-ui.js', 'text/javascript; charset=utf-8'], '/icons.js': ['icons.js','text/javascript'], '/vendor/external-link.svg': ['vendor/external-link.svg','image/svg+xml'], '/quotes-ui.js': ['quotes-ui.js', 'text/javascript'], '/': ['index.html', 'text/html'], '/index.html': ['index.html', 'text/html'], '/verify-email.html': ['verify-email.html', 'text/html'], '/verify-email.js': ['verify-email.js', 'text/javascript'], '/app.js': ['app.js', 'text/javascript'], '/research-ui.js': ['research-ui.js', 'text/javascript'], '/auth.js': ['auth.js', 'text/javascript'], '/security-ui.js': ['security-ui.js', 'text/javascript'], '/push-ui.js': ['push-ui.js', 'text/javascript'], '/styles.css': ['styles.css', 'text/css'], '/theme.css': ['theme.css', 'text/css'], '/logo.css': ['logo.css', 'text/css'], '/features.css': ['features.css', 'text/css'], '/ui-polish.css': ['ui-polish.css', 'text/css'], '/catalog.js': ['catalog.js', 'text/javascript'], '/company-icons.js': ['company-icons.js', 'text/javascript'], '/pwa.js': ['pwa.js', 'text/javascript'], '/sw.js': ['sw.js', 'text/javascript'], '/manifest.webmanifest': ['manifest.webmanifest', 'application/manifest+json'], '/offline.html': ['offline.html', 'text/html'], '/icon.svg': ['icon.svg', 'image/svg+xml'], '/icon-192.png': ['icon-192.png', 'image/png'], '/icon-512.png': ['icon-512.png', 'image/png'], '/apple-touch-icon.png': ['apple-touch-icon.png', 'image/png'] };
       const asset = assets[pathname];if (!asset || !['GET', 'HEAD'].includes(req.method)) fail(404, 'ไม่พบหน้าเว็บ');
       const data = readFileSync(path.join(root, 'dist', asset[0]));res.writeHead(200, { 'Content-Type': asset[1] + '; charset=utf-8' });res.end(req.method === 'HEAD' ? undefined : data);
     } catch (error) {send(res, error.status || 500, { error: error.status ? error.message : 'ระบบขัดข้อง กรุณาลองใหม่' });if (!error.status) console.error('StockLens request failed');}
@@ -569,8 +575,8 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const {port,host,...deployment}=runtimeConfig();
-  const groqApiKey = process.env.GROQ_API_KEY?.trim() || '',configuredProvider = (process.env.AI_PROVIDER || 'auto').trim().toLowerCase(),aiProvider = configuredProvider === 'auto' ? groqApiKey ? 'hybrid' : 'ollama' : configuredProvider;
-  const server = await createApp({ ...deployment, databasePath: process.env.DATABASE_PATH ? path.resolve(process.env.DATABASE_PATH) : undefined, refreshNews: process.env.NEWS_ENABLED !== 'false', quoteApiKey: process.env.FINNHUB_API_KEY?.trim() || '', historyApiKey: process.env.ALPHAVANTAGE_API_KEY?.trim() || '', aiEnabled: process.env.AI_ENABLED !== 'false', aiProvider, aiBaseUrl: process.env.OLLAMA_URL || 'http://127.0.0.1:11434', aiApiKey: groqApiKey, aiModel: ['groq', 'hybrid'].includes(aiProvider) ? process.env.GROQ_MODEL || 'qwen/qwen3.8-27b' : process.env.OLLAMA_MODEL || 'qwen3:8b', aiFallbackModel: process.env.OLLAMA_MODEL || 'qwen3:8b', mfaKeyHex: process.env.MFA_ENCRYPTION_KEY?.trim() || '', pushPublicKey: process.env.VAPID_PUBLIC_KEY?.trim() || '', pushPrivateKey: process.env.VAPID_PRIVATE_KEY?.trim() || '', pushSubject: process.env.VAPID_SUBJECT?.trim() || '', emailOrigin: deployment.publicOrigin || `http://127.0.0.1:${port}`, smtpHost: process.env.SMTP_HOST?.trim() || '', smtpPort: Number(process.env.SMTP_PORT || 587), smtpUser: process.env.SMTP_USER?.trim() || '', smtpPass: process.env.SMTP_PASS?.trim() || '', smtpFrom: process.env.SMTP_FROM?.trim() || '', emailLoginEnabled: process.env.EMAIL_LOGIN_OTP_ENABLED === 'true' });
+  const aiOptions = aiConfiguration();
+  const server = await createApp({ ...deployment, databasePath: process.env.DATABASE_PATH ? path.resolve(process.env.DATABASE_PATH) : undefined, refreshNews: process.env.NEWS_ENABLED !== 'false', quoteApiKey: process.env.FINNHUB_API_KEY?.trim() || '', historyApiKey: process.env.ALPHAVANTAGE_API_KEY?.trim() || '', aiEnabled: process.env.AI_ENABLED !== 'false', ...aiOptions, aiBaseUrl: process.env.OLLAMA_URL || 'http://127.0.0.1:11434', aiFallbackModel: process.env.OLLAMA_MODEL || 'qwen3:8b', mfaKeyHex: process.env.MFA_ENCRYPTION_KEY?.trim() || '', pushPublicKey: process.env.VAPID_PUBLIC_KEY?.trim() || '', pushPrivateKey: process.env.VAPID_PRIVATE_KEY?.trim() || '', pushSubject: process.env.VAPID_SUBJECT?.trim() || '', emailOrigin: deployment.publicOrigin || `http://127.0.0.1:${port}`, smtpHost: process.env.SMTP_HOST?.trim() || '', smtpPort: Number(process.env.SMTP_PORT || 587), smtpUser: process.env.SMTP_USER?.trim() || '', smtpPass: process.env.SMTP_PASS?.trim() || '', smtpFrom: process.env.SMTP_FROM?.trim() || '', emailLoginEnabled: process.env.EMAIL_LOGIN_OTP_ENABLED === 'true' });
   server.listen(port, host, () => console.log(`StockLens: http://${host}:${server.address().port}`));
   server.on('error', (error) => {console.error(error.code === 'EADDRINUSE' ? `พอร์ต ${port} ถูกใช้อยู่แล้ว ตั้งค่า PORT เป็นหมายเลขอื่น` : error.message);process.exitCode = 1;});
   for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => {server.shutdown().catch(()=>{process.exitCode=1;});});

@@ -1,0 +1,62 @@
+/* Appearance shares layout and spacing; only reading surfaces and contrast change. */
+.theme-toggle{gap:7px;white-space:nowrap;flex-shrink:0;font:500 12px var(--font);padding:8px;border:1px solid var(--line);background:var(--paper);color:var(--ink)}
+.theme-toggle svg{width:18px;height:18px}.auth-theme-toggle{position:absolute;right:20px;top:14px;z-index:3}
+html[data-theme=light]{--bg:#f6f5fa;--paper:#fff;--ink:#292234;--muted:#655c75;--line:#ddd6e8;--navy:#eee7f7;--accent:#5830aa;--danger:#a62b45;color-scheme:light;accent-color:var(--accent);scrollbar-color:#b1a4c3 #f6f5fa}
+html[data-theme=light] body{background:var(--bg);color:var(--ink)}
+html[data-theme=light] :focus-visible{outline-color:#6940c7!important}
+html[data-theme=light] input,html[data-theme=light] textarea{caret-color:#5830aa}
+html[data-theme=light] .topbar,html[data-theme=light] .risk-footer{border-color:var(--line)}
+html[data-theme=light] .topbar .brand,html[data-theme=light] .breadcrumb b,html[data-theme=light] .risk-footer b{color:var(--ink)}
+html[data-theme=light] .brand-dot{color:#6940c7}
+html[data-theme=light] .search-button kbd,html[data-theme=light] .avatar,html[data-theme=light] .counter,html[data-theme=light] .section-title .counter{background:#eee7f7;border-color:#d5c7e6;color:#57378a}
+html[data-theme=light] .icon-button{color:#655075}html[data-theme=light] .icon-button:hover{background:#eee7f7;color:#412275}
+html[data-theme=light] .btn{background:#fff;color:#4b3462;border-color:#bbaacb}
+html[data-theme=light] .btn:hover:not(:disabled){background:#eee7f7;border-color:#8865aa}
+html[data-theme=light] .btn.primary{background:#5d32b0;border-color:#5d32b0;color:#fff}
+html[data-theme=light] .btn.primary:hover:not(:disabled){background:#48218f;border-color:#48218f}
+html[data-theme=light] .text-button,html[data-theme=light] .source-url{color:#6336a6}
+html[data-theme=light] .text-button:hover{color:#412275}
+html[data-theme=light] .tab{color:#655c75}html[data-theme=light] .tab.active{border-color:#6336a6;color:#6336a6}html[data-theme=light] .tab:hover{color:#412275}
+html[data-theme=light] .ticker-tag,html[data-theme=light] .source-initial,html[data-theme=light] .source-entry-bottom>span{background:#eee7f7;color:#57378a}
+html[data-theme=light] .news-title{color:#352342}html[data-theme=light] .news-title:hover{color:#6336a6}
+html[data-theme=light] .company-logo{background:#eee7f7;border-color:#cbbbdb;color:#57378a}
+html[data-theme=light] .company-logo.has-icon{background:#f6f3fa;border-color:#ddd6e8}
+html[data-theme=light] .feed-status,html[data-theme=light] .info-box,html[data-theme=light] .source-presets{background:#f3eef9;color:#655075;border-color:#ddd0ea}
+html[data-theme=light] .field,html[data-theme=light] th,html[data-theme=light] .sources-summary span,html[data-theme=light] .source-entry-bottom>span{color:#594868}
+html[data-theme=light] .field input,html[data-theme=light] .field select,html[data-theme=light] .setting-row select,html[data-theme=light] .setting-row input[type=time],html[data-theme=light] .source-preset-search input,html[data-theme=light] .large-search{background:#fcfaff;border-color:#bbaacb;color:var(--ink)}
+html[data-theme=light] input::placeholder,html[data-theme=light] textarea::placeholder{color:#746581}
+html[data-theme=light] .source-preset-search{color:#655075}
+html[data-theme=light] .switch{background:#a89ab8}html[data-theme=light] .switch:checked{background:#6940c7}html[data-theme=light] .switch:checked:before{background:#fff}
+html[data-theme=light] .research-company,html[data-theme=light] .research-months .tab{background:#f3eef9;border-color:#bbaacb;color:#594868}
+html[data-theme=light] .research-company.selected,html[data-theme=light] .research-months .tab.active{background:#5d32b0;border-color:#5d32b0;color:#fff}
+html[data-theme=light] .agent-notice{background:#f0eaf8}html[data-theme=light] .ai-entry>span{color:#6940c7}
+/* Keep the AI reading panel plum in both appearances, as in the supplied reference. */
+html[data-theme=light] .ai-card .field,html[data-theme=light] .ai-card h2,html[data-theme=light] .ai-card h3{color:#f1e6fb}
+html[data-theme=light] .ai-card .ai-stock select,html[data-theme=light] .ai-card textarea{background:#1e1529;color:#f1e6fb;border-color:#9274ad}
+html[data-theme=light] .ai-card .text-button,html[data-theme=light] .ai-card a{color:#dfc1ff}
+html[data-theme=light] .ai-card [data-ai-summary]{background:#e5d1fa;color:#301d43;border-color:#e5d1fa}
+html[data-theme=light] .ai-card .btn:hover:not(:disabled){background:#f1e3ff;color:#301d43}
+html[data-theme=light] .weekly-chart,html[data-theme=light] .mfa-secret,html[data-theme=light] .recovery-notice{background:#f3eef9;color:#594868;border-color:#cbbbdb}
+html[data-theme=light] .weekly-chart figcaption,html[data-theme=light] .chart-labels{color:#655075}
+html[data-theme=light] dialog{background:#fff;color:var(--ink);border-color:#bbaacb}
+html[data-theme=light] #mobile-menu .nav{color:#594868}html[data-theme=light] #mobile-menu .nav:hover{background:#f0eaf8}html[data-theme=light] #mobile-menu .nav.active{background:#e9def7;color:#542bad}html[data-theme=light] #mobile-menu .export-link{color:#6336a6}
+html[data-theme=light] .dock-surface path{fill:#fff;stroke:#bbaacb}html[data-theme=light] .dock-surface{filter:drop-shadow(0 8px 18px #38234f25)}
+html[data-theme=light] .app-dock .nav{color:#655075}html[data-theme=light] .app-dock .nav.active{color:#542bad}html[data-theme=light] .app-dock .nav:hover{color:#542bad}
+html[data-theme=light] .setup-option:hover,html[data-theme=light] .setup-option:has(input:checked){background:#eee7f7;border-color:#6940c7}
+html[data-theme=light] .device-icon{background:#eee7f7;color:#6336a6}html[data-theme=light] .device-current{color:#6336a6}
+html[data-theme=light] .sentiment.negative,html[data-theme=light] .form-error{background:#fff0f3;border-color:#dcabb9;color:#93364f}
+html[data-theme=light] .sentiment.positive{background:#e8f3d5;color:#405b17}
+html[data-theme=dark] body.signed-out{background:var(--bg);color:var(--ink);color-scheme:dark}
+html[data-theme=dark] #auth-screen{--ink:#f1edf7;--muted:#b8aec7;--line:#3b314a}
+html[data-theme=dark] .auth-shell,html[data-theme=dark] .auth-panel{background:#211b2c;border-color:#3b314a;scrollbar-color:#675577 #211b2c}
+html[data-theme=dark] .auth-content,html[data-theme=dark] .auth-content h1,html[data-theme=dark] .auth-brand.brand{color:#f1edf7}
+html[data-theme=dark] .auth-description,html[data-theme=dark] .auth-panel-footer,html[data-theme=dark] .auth-form .field small,html[data-theme=dark] .auth-tabs button{color:#b8aec7}
+html[data-theme=dark] .auth-tabs{border-color:#51425f}html[data-theme=dark] .auth-tabs button.active,html[data-theme=dark] .auth-panel .text-button{color:#d4bafa}html[data-theme=dark] .auth-tabs button.active:after{background:#d4bafa}
+html[data-theme=dark] .auth-form .field{color:#e4d9ee}html[data-theme=dark] .auth-form .field input{background:#191421;border-color:#79618b;color:#f1edf7}
+html[data-theme=dark] .auth-form .field input::placeholder{color:#b6a7c4}html[data-theme=dark] .password-input button{color:#d4bafa}html[data-theme=dark] .password-input button:hover{background:#352940}
+html[data-theme=dark] #auth-screen :focus-visible{outline-color:#d8f68a!important}
+html[data-theme=dark] #auth-screen .auth-success,html[data-theme=dark] #auth-screen .recovery-notice{background:#30233f;color:#e9dcf4;border-color:#79608d}
+html[data-theme=dark] #auth-screen .recovery-notice input{background:#191421;color:#f1edf7;border-color:#79618b}
+.ai-timeline{display:flex;flex-wrap:wrap;gap:8px 20px}
+.ai-actions{display:flex;align-items:center;flex-wrap:wrap;gap:12px}.ai-actions>[data-ai-summary]{flex:1}.ai-availability{font-size:13px!important;margin:12px 0!important}.ai-free-search{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px}
+@media(max-width:740px){.theme-toggle>span{display:none}.topbar .theme-toggle{min-width:44px}.topbar #quick-search{display:none}.auth-theme-toggle{top:10px;right:10px}#auth-screen{padding-top:64px}}

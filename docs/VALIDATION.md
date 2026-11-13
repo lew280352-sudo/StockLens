@@ -1,6 +1,6 @@
 # StockLens implementation evidence
 
-This branch is prepared for review. No production URL has been verified and no legacy account data has been imported. The owner subsequently authorized a fresh database on 6 November 2026; legacy discovery/import is no longer a deployment prerequisite.
+Production URL https://stocklen-znwy.onrender.com has been verified over HTTPS. Registration, login, preferences, onboarding and session revocation passed on a dedicated test account; no legacy account data was imported. The owner subsequently authorized a fresh database on 6 November 2026; legacy discovery/import is no longer a deployment prerequisite.
 
 ## Automated checks
 
@@ -30,9 +30,9 @@ The 6 November account refinement adds equal 50/50 desktop panes and one frame h
 
 ## Account-dependent cutover
 
-The owner authorized starting fresh instead of migrating the Windows database. Render/Turso are not yet configured. See [the current status and standalone Windows finder](CUTOVER_STATUS.md). The local preview database and Docker smoke-test database were inspected read-only; both contain zero accounts and are not substitutes for the owner's original data. Live RSS probes successfully parsed all four company feeds; AI/SMTP/VAPID credentials remain absent and inbox/handset delivery is unverified.
+The owner authorized starting fresh instead of migrating the Windows database. Render/Turso are configured on the host; credentials are deliberately absent from the workspace. See [the current status and standalone Windows finder](CUTOVER_STATUS.md). The local preview database and Docker smoke-test database were inspected read-only; both contain zero accounts and are not substitutes for the owner's original data. Live RSS probes successfully parsed all four company feeds; AI/SMTP/VAPID credentials remain absent and inbox/handset delivery is unverified.
 
-Follow [FREE_CLOUD.md](FREE_CLOUD.md). Connect Render and provision a new Turso Free libSQL database. Set database credentials and fresh MFA/VAPID keys in secrets, deploy the validated source, then verify new-account login/watchlist on HTTPS and after redeployment. No legacy import is required under the current authorization; do not delete or overwrite the original files.
+Follow [FREE_CLOUD.md](FREE_CLOUD.md). Render and the fresh Turso libSQL database are connected. Set database credentials and fresh MFA/VAPID keys in secrets, deploy the validated source, then verify new-account login/watchlist on HTTPS and after redeployment. No legacy import is required under the current authorization; do not delete or overwrite the original files.
 
 ## First use and device management
 
@@ -44,3 +44,9 @@ The Windows finder is a standalone Node script using read-only SQLite connection
 ## Final fresh-review corrections
 
 One independent whole-branch review found five important issues. Regression tests now cover stale password-to-email-challenge issuance after recovery, rollback of TOTP consumption when session creation fails, MFA/recovery secrets returning after dismissal/logout/account switch, and queued news/test Push after account deletion. The cutover runbook now freezes the source before the final backup and defines safe rollback before and after destination writes. An already-dispatched Push cannot be recalled.
+
+## 13 November: appearance and online AI
+
+72 unit/API tests pass, including Gemini header-only credentials, bounded responses, structured output and source-ID validation, a persistent per-provider generation cap, cached results and source-enabled brief fallback. Playwright passes system/light/dark with reload/cross-tab persistence, denied localStorage, 4.5:1 selected text contrast and all routes at 390/768/1440px. General UI, responsive, reference, account-tools and PWA regressions pass. Gemini transport/quotas use test fixtures; this is not a claim of successful live Gemini generation.
+
+A fresh live probe retained the test account and its AAPL/NVDA watchlist, fetched 38 headlines, and found the running service still selected Ollama with summary HTTP 503. Deploy and actual provider generation must be checked after the update. See [online AI setup](AI_ONLINE.md).

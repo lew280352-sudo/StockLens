@@ -6,14 +6,16 @@
   <meta name="description" content="StockLens แอปติดตามและสรุปข่าวบริษัทจากแหล่งที่คุณเลือก">
   <link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes">
   <title>StockLens — มองข่าวให้เห็นภาพ</title>
+  <script src="appearance.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="theme.css"><link rel="stylesheet" href="logo.css"><link rel="stylesheet" href="features.css"><link rel="stylesheet" href="ui-polish.css">
+  <link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="theme.css"><link rel="stylesheet" href="logo.css"><link rel="stylesheet" href="features.css"><link rel="stylesheet" href="ui-polish.css"><link rel="stylesheet" href="appearance.css">
   <script src="icons.js" defer></script><script src="app.js" defer></script><script src="account-ui.js" defer></script><script src="research-ui.js" defer></script><script src="quotes-ui.js" defer></script><script src="auth.js" defer></script><script src="security-ui.js" defer></script><script src="push-ui.js" defer></script><script src="pwa.js" defer></script>
 </head>
 <body class="signed-out">
   <p id="offline-status" class="offline-status" role="status" hidden>ออฟไลน์ — บันทึกข้อมูลและโหลดข่าวไม่ได้จนกว่าจะเชื่อมต่ออีกครั้ง</p>
   <section id="auth-screen" data-mode="register" aria-label="สมัครสมาชิกและเข้าสู่ระบบ">
+    <button class="icon-button theme-toggle auth-theme-toggle" data-theme-toggle type="button" aria-label="เปลี่ยนธีม">ธีม</button>
     <a class="brand auth-brand" href="/"><span class="brand-icon">s<span>l</span></span>stocklens<span class="brand-dot">.</span></a>
     <div class="auth-shell">
       <div class="auth-panel"><div id="auth-content" class="auth-content"><p class="muted" role="status">กำลังตรวจสอบการเข้าสู่ระบบ…</p></div><p class="auth-panel-footer"><span data-icon="shield"></span>เก็บเฉพาะบริษัทและแหล่งข่าวที่เลือก</p></div>
@@ -26,7 +28,7 @@
     </div>
   </section>
   <div class="app">
-    <header class="topbar"><div class="topbar-leading"><a class="brand" href="#overview" data-page="overview" aria-label="StockLens ภาพรวม"><span class="brand-icon">s<span>l</span></span>stocklens<span class="brand-dot">.</span></a><div class="breadcrumb"><span>/</span> <b id="breadcrumb">ภาพรวม</b></div></div><div class="top-actions"><button id="quick-search" class="search-button"><span data-icon="search"></span><span>ค้นหาหุ้นหรือบริษัท</span><kbd>/</kbd></button><button class="icon-button" data-page="sources" aria-label="แหล่งข้อมูล"><span data-icon="layers"></span></button><button class="icon-button" data-page="alerts" aria-label="การแจ้งเตือน"><span data-icon="bell"></span></button><button class="avatar small account-logout" data-logout aria-label="ออกจากระบบ" title="ออกจากระบบ"><span data-user-avatar>L</span></button></div></header>
+    <header class="topbar"><div class="topbar-leading"><a class="brand" href="#overview" data-page="overview" aria-label="StockLens ภาพรวม"><span class="brand-icon">s<span>l</span></span>stocklens<span class="brand-dot">.</span></a><div class="breadcrumb"><span>/</span> <b id="breadcrumb">ภาพรวม</b></div></div><div class="top-actions"><button class="icon-button theme-toggle" data-theme-toggle type="button" aria-label="เปลี่ยนธีม">ธีม</button><button id="quick-search" class="search-button"><span data-icon="search"></span><span>ค้นหาหุ้นหรือบริษัท</span><kbd>/</kbd></button><button class="icon-button" data-page="sources" aria-label="แหล่งข้อมูล"><span data-icon="layers"></span></button><button class="icon-button" data-page="alerts" aria-label="การแจ้งเตือน"><span data-icon="bell"></span></button><button class="avatar small account-logout" data-logout aria-label="ออกจากระบบ" title="ออกจากระบบ"><span data-user-avatar>L</span></button></div></header>
     <main id="main" tabindex="-1"></main>
     <footer class="risk-footer"><span data-icon="shield"></span><span><b>AI อาจสรุปผิดพลาด</b> ควรอ่านต้นฉบับ · เก็บเฉพาะบริษัทและแหล่งข่าวที่เลือก · ไม่เก็บข้อมูลพอร์ต</span><span class="footer-mark">STOCKLENS / US</span></footer>
   </div>

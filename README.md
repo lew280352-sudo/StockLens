@@ -77,10 +77,14 @@ Windows ใช้ Edge ที่ติดตั้งไว้; Linux/macOS ร�
 
 [สถานะล่าสุดและเครื่องมือค้นฐานบน Windows เดิม](docs/CUTOVER_STATUS.md) · `npm run find:legacy` ค้นฐานแบบอ่านอย่างเดียว · `npm run check:services` ตรวจบริการจริงโดยไม่พิมพ์คีย์
 
-ทางเลือกที่เตรียมสำหรับใช้งานโดยไม่เปิดคอมค้างไว้คือ [Render Free + Turso Free](docs/FREE_CLOUD.md) เจ้าของอนุญาตให้เริ่มฐานข้อมูลใหม่แล้ว จึงไม่ต้องรอ backup เดิมก่อนตั้งบริการ ยังไม่มี URL ที่ตรวจยืนยันว่าออนไลน์แล้ว
+ทางเลือกที่เตรียมสำหรับใช้งานโดยไม่เปิดคอมค้างไว้คือ [Render Free + Turso Free](docs/FREE_CLOUD.md) เจ้าของอนุญาตให้เริ่มฐานข้อมูลใหม่แล้ว จึงไม่ต้องรอ backup เดิมก่อนตั้งบริการ เว็บจริงคือ [stocklen-znwy.onrender.com](https://stocklen-znwy.onrender.com) ตรวจ health, login และรายการติดตามผ่านแล้ว
 
 การใช้ส่วนตัวจากมือถือนอกบ้านแบบ HTTPS สามารถตั้ง [Tailscale Serve](docs/PRIVATE_ACCESS.md) บนคอมและมือถือด้วยบัญชี Tailscale ส่วนตัวฟรี URL จะคงที่ภายใน tailnet แต่คอมและ StockLens ต้องเปิดอยู่ เครื่องนี้ยังไม่ได้ติดตั้ง/ลงชื่อเข้าใช้ Tailscale ส่วน Cloudflare Quick Tunnel เป็นทางเลือกชั่วคราวสำหรับทดสอบเท่านั้น ลิงก์เก่าใน `.data/mobile-preview.json` หมดอายุแล้ว ดู [วิธีใช้และข้อจำกัด](docs/OPERATIONS.md)
 
 GitHub เก็บซอร์สโค้ดเท่านั้น GitHub Pages รัน backend นี้ไม่ได้ หากต้องการ URL ถาวรต้องมีโฮสต์ Node.js 24+ หรือ Docker แบบ single instance, ฐานข้อมูลถาวรในดิสก์หรือ Turso และ HTTPS โดยตั้ง `APP_ORIGIN` ให้ตรง URL จริง
 
 ที่มาของข้อกำหนดการติดตั้ง: [MDN — Making PWAs installable](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Making_PWAs_installable)
+
+## ข่าวฟรี, Gemini/Groq และธีม
+
+เปิด [StockLens](https://stocklen-znwy.onrender.com) ได้ผ่าน HTTPS รวมหัวข้อข่าวจาก RSS พร้อมลิงก์ต้นทางโดยไม่ต้องมีคีย์ AI เพิ่ม Gemini และ Groq สำหรับสรุปไทย/ถามต่อเมื่อเจ้าของตั้งคีย์ใน Render ใช้ปุ่มธีมด้านบนเลือกตามระบบ สว่าง หรือมืด [วิธีตั้งค่าและข้อจำกัด](docs/AI_ONLINE.md)

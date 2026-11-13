@@ -25,6 +25,9 @@ jobs:
       - run: npm run test:account-ui
         env:
           ACCOUNT_ARTIFACT_DIR: artifacts/account
+      - run: npm run test:appearance-ui
+        env:
+          APPEARANCE_ARTIFACT_DIR: artifacts/appearance
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -33,6 +36,7 @@ jobs:
             artifacts/responsive
             artifacts/reference
             artifacts/account
+            artifacts/appearance
           if-no-files-found: ignore
       - run: npm run test:research-ui
       - run: npm run test:security-ui
