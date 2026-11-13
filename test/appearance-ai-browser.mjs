@@ -48,7 +48,7 @@ try {
       assert.ok(await contrast(page, '.ai-card>p', '.ai-card') >= 4.5);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
       await page.screenshot({path: `${artifacts}/insights-${mode}-${width}.png`, fullPage: true, animations: 'disabled'});
-      for (const route of ['overview', 'following', 'welcome', 'devices', 'sources', 'alerts', 'search']) {
+      for (const route of ['overview', 'following', 'welcome', 'devices', 'sources', 'alerts', 'search', 'account']) {
         await navigateUI(page, route);assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `${mode}/${route}/${width}`);
       }
       await navigateUI(page, 'insights');

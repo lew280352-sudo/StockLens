@@ -58,3 +58,9 @@ Groq follow-up fixes expand the Thai summary/answer output budgets to 2400/1600 
 [CI for code commit 6d0b150](https://github.com/lew280352-sudo/StockLens/actions/runs/43385728800) passed all three jobs. A separate live browser probe rendered the real Groq summary, five source links and the enabled question form at 390/1440px with zero JavaScript errors; its temporary account was deleted too.
 
 The theme selector now offers only light and dark, preserving existing explicit choices and using dark for legacy system preferences. The repeated breadcrumb beside the brand was removed. The appearance and reference suites cover both themes and navigation without the breadcrumb.
+
+## Account overview and intentional sign-out
+
+The topbar avatar now opens #account instead of logging out. The page shows the current account name/email, saved watchlist count, enabled-source count and company list, with links to devices, settings, sources and export. The only direct logout control is a red button at the end of that page. No backend or account schema changes are required.
+
+Playwright verifies avatar navigation preserves the session, counts follow saved edits, #account survives reload, light/dark profiles fit 390/768/1440px and logout remains reachable. Existing general, responsive, reference, appearance, research, security/privacy-race and PWA suites pass through the updated account logout flow. The isolated 20-user scenario report records 20 passed and zero failed, including logout/login persistence.

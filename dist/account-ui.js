@@ -1,5 +1,27 @@
 let onboardingDraft=null,onboardingDraftEpoch=-1,onboardingDraftRevision=0;
 
+function renderAccount(){
+  const followed=state.watchlist.map(stock),enabledSources=state.sources.filter(source=>source.enabled).length;
+  const initial=Array.from(currentUser.name)[0]?.toUpperCase()||'';
+  return header('บัญชีของฉัน','ข้อมูลบัญชีและสิ่งที่คุณเลือกติดตาม')+`
+    <div id="account-page" class="account-page">
+      <section class="card account-overview" aria-label="ข้อมูลบัญชีของฉัน">
+        <div class="account-identity"><span class="avatar account-avatar" aria-hidden="true">${escapeHtml(initial)}</span><div><h2>${escapeHtml(currentUser.name)}</h2><p class="account-email">${escapeHtml(currentUser.email)}</p></div></div>
+        <dl class="account-metrics"><div><dt>บริษัทที่ติดตาม</dt><dd><span data-account-watchlist-count>${followed.length}</span><small>บริษัท</small></dd></div><div><dt>แหล่งข้อมูลที่เปิดไว้</dt><dd><span data-account-sources-count>${enabledSources}</span><small>แหล่ง</small></dd></div></dl>
+      </section>
+      <section class="card account-following"><div class="section-title"><h2>บริษัทในรายการของคุณ</h2><button class="text-button" data-page="following">จัดการรายการ ${icon('arrow')}</button></div>
+        ${followed.length?`<ul class="account-company-list">${followed.slice(0,6).map(company=>`<li>${companyLogo(company.symbol)}<span><b>${escapeHtml(company.symbol)}</b><small>${escapeHtml(company.name)}</small></span></li>`).join('')}</ul>${followed.length>6?`<p class="small-note">และอีก ${followed.length-6} บริษัทในรายการติดตาม</p>`:''}`:'<p class="muted">ยังไม่ได้ติดตามบริษัท เลือกบริษัทเพื่อเริ่มรวมข่าวที่คุณสนใจ</p><button class="btn" data-action="add">เลือกบริษัทที่ติดตาม</button>'}
+      </section>
+      <nav class="account-shortcuts" aria-label="จัดการบัญชี">
+        <button class="card account-shortcut" data-page="devices">${icon('shield')}<span><b>อุปกรณ์ที่เข้าสู่ระบบ</b><small>ดูและจัดการเซสชันของคุณ</small></span>${icon('arrow')}</button>
+        <button class="card account-shortcut" data-page="alerts">${icon('bell')}<span><b>การแจ้งเตือนและความปลอดภัย</b><small>ตั้งค่าข่าว รหัสกู้คืน และการเข้าสู่ระบบ</small></span>${icon('arrow')}</button>
+        <button class="card account-shortcut" data-page="sources">${icon('layers')}<span><b>แหล่งข้อมูลของฉัน</b><small>เลือกเว็บไซต์และฟีดที่ต้องการติดตาม</small></span>${icon('arrow')}</button>
+        <a class="card account-shortcut" href="/api/export" download>${icon('news')}<span><b>ดาวน์โหลดข้อมูลบัญชี</b><small>เก็บสำเนารายการติดตามและการตั้งค่า</small></span>${icon('arrow')}</a>
+      </nav>
+      <section class="account-signout" aria-label="ออกจากระบบ"><div><h2>ออกจากระบบบนอุปกรณ์นี้</h2><p>รายการติดตามยังอยู่ กลับมาเข้าสู่ระบบได้เสมอ</p></div><button class="btn profile-logout" id="profile-logout" data-logout>${icon('logout')}ออกจากระบบ</button></section>
+    </div>`;
+}
+
 function setupDraft(){
   if(onboardingDraftEpoch!==authEpoch){onboardingDraft=structuredClone(state);onboardingDraftEpoch=authEpoch;onboardingDraftRevision=stateRevision;}
   return onboardingDraft;

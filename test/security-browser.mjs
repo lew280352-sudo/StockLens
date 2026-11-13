@@ -1,4 +1,4 @@
-import {navigateUI} from './navigation.mjs';
+import {navigateUI,logoutUI} from './navigation.mjs';
 import { chromium } from 'playwright';
 import { once } from 'node:events';
 import { randomBytes } from 'node:crypto';
@@ -33,7 +33,7 @@ try {
   await page.waitForSelector('#mfa-enable-form');const secret = (await page.locator('.mfa-secret').innerText()).trim();
   await page.locator('#mfa-enable-form [name=code]').fill(totpCode(secret, Math.floor(Date.now() / 30000)));
   await page.locator('#mfa-enable-form [type=submit]').click();await page.waitForSelector('#security-card [data-security-disable]');
-  await page.locator('.topbar [data-logout]').click();await page.waitForSelector('#login-form');
+  await logoutUI(page);await page.waitForSelector('#login-form');
   await page.locator('#login-form [name=email]').fill('security-ui@example.com');await page.locator('#login-form [name=password]').fill('correct-test-password');
   await page.locator('#login-form [type=submit]').click();await page.waitForSelector('#login-challenge-form');
   assert.match(await page.locator('#login-challenge-form').innerText(), /Authenticator/);

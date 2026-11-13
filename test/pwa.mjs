@@ -1,4 +1,4 @@
-import {navigateUI,skipFirstUse} from './navigation.mjs';
+import {navigateUI,skipFirstUse,logoutUI} from './navigation.mjs';
 import { chromium } from 'playwright';
 import { once } from 'node:events';
 import { mkdtempSync } from 'node:fs';
@@ -40,7 +40,7 @@ try {
   assert.match(await page.locator('.ai-sources').innerText(), /เผยแพร่.*น\. \(ไทย\)/s);
   await page.locator('#ai-question').fill('ข่าวนี้เกี่ยวกับอะไร?');await page.locator('#ai-question-form button').click();
   await page.waitForSelector('.ai-answer');assert.match(await page.locator('.ai-answer').innerText(), /หัวข้อของ Microsoft/);assert.equal(await page.locator('.ai-answer-sources a').count(), 1);
-  await page.locator('.topbar [data-logout]').click();await page.waitForSelector('#login-form');
+  await logoutUI(page);await page.waitForSelector('#login-form');
   await page.locator('[data-recover]').click();await page.locator('#recover-form [name=email]').fill('pwa@example.com');await page.locator('#recover-form [name=code]').fill(code);await page.locator('#recover-form [name=password]').fill('pwa-new-password');await page.locator('#recover-form [name=confirm]').fill('pwa-new-password');await page.locator('#recover-form [type=submit]').click();await page.waitForSelector('#login-form');assert.notEqual(await page.locator('[aria-label="รหัสกู้คืน"]').inputValue(), code);
   await page.locator('#login-form [name=password]').fill('pwa-new-password');await page.locator('#login-form [type=submit]').click();await page.waitForSelector('body:not(.signed-out)');
   await page.locator('.mobile-nav [data-page=following]').click();assert.match(await page.locator('.company-grid').first().innerText(), /AAPL/);assert.doesNotMatch(await page.locator('#main').innerText(), /0\.125001|ต้นทุนเฉลี่ย/);

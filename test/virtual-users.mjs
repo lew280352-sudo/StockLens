@@ -1,4 +1,4 @@
-import {navigateUI,skipFirstUse} from './navigation.mjs';
+import {navigateUI,skipFirstUse,logoutUI} from './navigation.mjs';
 import { chromium } from 'playwright';
 import { once } from 'node:events';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -66,7 +66,7 @@ try {
     const exported = await api(user, '/api/export');assert.equal(exported.status, 200);assert.equal(exported.data.user.email, user.email);assert.ok(exported.data.state.watchlist.includes('AAPL'));assert.doesNotMatch(JSON.stringify(exported.data), /password_hash|token_hash|qty|cost/);
   });
   await phase('logout-login-persistence', async (user) => {
-    const page = user.page;await page.locator(user.device === 'mobile' ? '.topbar [data-logout]' : '.topbar [data-logout]').click();await page.waitForSelector('#login-form');assert.equal(await page.locator('#main').innerHTML(), '');assert.equal((await api(user, '/api/export')).status, 401);
+    const page = user.page;await logoutUI(page);await page.waitForSelector('#login-form');assert.equal(await page.locator('#main').innerHTML(), '');assert.equal((await api(user, '/api/export')).status, 401);
     await login(user);const current = (await api(user, '/api/session')).data;assert.ok(current.state.watchlist.includes('AAPL'));assert.equal(current.state.sources.at(-1).url, `https://example.com/user-${user.number}`);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);assert.deepEqual(user.errors, []);user.status = 'passed';
   });

@@ -1,4 +1,4 @@
-import {navigateUI} from './navigation.mjs';
+import {navigateUI,logoutUI} from './navigation.mjs';
 import { chromium } from 'playwright';
 import { once } from 'node:events';
 import assert from 'node:assert/strict';
@@ -31,7 +31,7 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'research results must fit on a phone');
   await page.locator('#company-query').fill('Apple');assert.equal(await page.locator('.research-results').count(), 0);
-  await page.locator('.topbar [data-logout]').click();await page.waitForSelector('#login-form');assert.equal(await page.locator('#main').innerHTML(), '');
+  await logoutUI(page);await page.waitForSelector('#login-form');assert.equal(await page.locator('#main').innerHTML(), '');
   assert.deepEqual(errors, []);
   console.log('PASS: company search, month choice, AI summary, source link, query reset and logout');
 } finally {await browser?.close();await server.shutdown();}
