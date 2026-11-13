@@ -52,9 +52,10 @@ export async function createArticleService(db,{fetcher=fetch,now=Date.now}={}){
     if(pending.size>=12)throw failure('article_busy');
     let stage='cache';
     const task=(async()=>{
-      const cached=await db.get('SELECT data,fetched_at FROM article_contents WHERE url=?',[initial]);
+      // Text caching is optional: a cache outage must not prevent reading the source.
+      let cached;try{cached=await db.get('SELECT data,fetched_at FROM article_contents WHERE url=?',[initial]);}catch{}
       if(closed)throw failure('article_unavailable');
-      if(cached&&now()-cached.fetched_at<CACHE_MS)return {...JSON.parse(cached.data),cached:true};
+      if(cached&&now()-Number(cached.fetched_at)<CACHE_MS){try{return {...JSON.parse(cached.data),cached:true};}catch{}}
       await acquire();
       try{
         if(closed)throw failure('article_unavailable');
@@ -77,7 +78,7 @@ export async function createArticleService(db,{fetcher=fetch,now=Date.now}={}){
           const content=await extractArticle(Buffer.concat(chunks),url.href),result={...content,url:url.href,readAt:new Date(now()).toISOString()};
           if(closed)throw failure('article_unavailable');
           stage='cache';
-          await db.run('INSERT OR REPLACE INTO article_contents VALUES(?,?,?)',[initial,JSON.stringify(result),now()]);
+          try{await db.run('INSERT OR REPLACE INTO article_contents(url,data,fetched_at) VALUES(?,?,?)',[initial,JSON.stringify(result),now()]);}catch{}
           return {...result,cached:false};
         }
       }finally{release();}

@@ -47,3 +47,10 @@ test('article reader caps concurrent page fetches at two',async()=>{
   const reader=await createArticleService(db,{fetcher:async()=>{active++;max=Math.max(max,active);await new Promise(resolve=>setTimeout(resolve,10));active--;return response(html);}});
   try{await Promise.all([1,2,3,4].map(id=>reader.read(url+'-'+id)));assert.equal(max,2);}finally{await reader.close();await db.close();}
 });
+
+test('article cache read/write failures do not discard successfully extracted content',async()=>{
+  let calls=0;
+  const db={exec:async()=>{},get:async()=>{throw Error('cache read unavailable');},run:async()=>{throw Error('cache write unavailable');}};
+  const reader=await createArticleService(db,{fetcher:async()=>{calls++;return response(html);}});
+  try{const result=await reader.read(url);assert.equal(calls,1);assert.match(result.text,/Cambridge in 2028/);assert.equal(result.cached,false);}finally{await reader.close();}
+});
