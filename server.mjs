@@ -268,6 +268,7 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
           if(error.status)throw error;
           const message={unsupported_article:'แหล่งนี้ยังอ่านเนื้อหาอัตโนมัติไม่ได้',article_too_large:'หน้าเว็บนี้ใหญ่เกินกว่าจะอ่านในครั้งเดียว',article_unreadable:'ยังแยกเนื้อหาบทความจากหน้านี้ไม่ได้',article_blocked:'เว็บต้นทางไม่เปิดให้อ่านเนื้อหาอัตโนมัติ',article_unavailable:'ดึงเนื้อหาบทความไม่สำเร็จ กรุณาลองใหม่',article_busy:'กำลังอ่านบทความหลายรายการ กรุณารอสักครู่',disabled:'AI ยังไม่เปิดใช้งาน',not_configured:'ยังไม่ได้เชื่อมบริการ AI',quota:'โควตา AI หมดชั่วคราว คุณยังอ่านข่าวต้นฉบับได้',credentials:'บริการ AI ปฏิเสธสิทธิ์การเข้าถึง',invalid_output:'AI ส่งคำตอบไม่ครบ กรุณาลองใหม่'}[error.code]||'สรุปเนื้อหาบทความไม่ได้ในขณะนี้ กรุณาลองใหม่';
           if(error.code==='quota')return send(res,429,{error:message,retryAt:error.retryAt});
+          if(error.code==='article_unavailable')return send(res,503,{error:message,code:error.code,stage:error.stage,...(error.upstreamStatus?{upstreamStatus:error.upstreamStatus}:{})});
           fail(['unsupported_article','article_too_large','article_unreadable','article_blocked'].includes(error.code)?422:503,message);
         }
         if((await currentUser(req))?.id!==user.id)fail(401,'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');

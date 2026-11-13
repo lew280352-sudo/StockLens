@@ -49,3 +49,10 @@ test('unreadable content fails explicitly instead of silently summarizing the he
   const user=await account('article-blocked@example.com'),feed=await call('/api/news',{cookie:user.cookie});
   const summary=await call('/api/ai/article',{cookie:user.cookie,data:{articleId:feed.body.items[0].id}});assert.equal(summary.status,422);assert.match(summary.body.error,/ไม่เปิดให้อ่าน/);assert.equal(summary.body.provider,undefined);
 });
+
+test('article fetch failures expose a safe stage without upstream exception details',async t=>{
+  const {call,account}=await setup(t,{articleFetcher:async()=>{throw Error('private upstream exception');}});
+  const user=await account('article-unavailable@example.com'),feed=await call('/api/news',{cookie:user.cookie});
+  const summary=await call('/api/ai/article',{cookie:user.cookie,data:{articleId:feed.body.items[0].id}});
+  assert.equal(summary.status,503);assert.equal(summary.body.code,'article_unavailable');assert.equal(summary.body.stage,'fetch');assert.doesNotMatch(JSON.stringify(summary.body),/private upstream/);
+});
