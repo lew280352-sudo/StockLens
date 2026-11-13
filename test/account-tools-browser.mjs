@@ -11,7 +11,18 @@ try{
  for(const width of [390,768,1440]){
   const context=await browser.newContext({viewport:{width,height:950}}),page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));page.setDefaultTimeout(6000);
   const account={name:'Account tools test',email:`tools-${width}@example.com`,password:'account-tools-browser-password'};
-  await context.request.post(base+'/api/register',{headers:{Origin:base},data:account});await page.goto(base+'/#login');await page.locator('#login-form [name=email]').fill(account.email);await page.locator('#login-form [name=password]').fill(account.password);await page.locator('#login-form [type=submit]').click();await page.waitForSelector('#onboarding-form');
+  await context.request.post(base+'/api/register',{headers:{Origin:base},data:account});await page.goto(base+'/#login');await page.locator('#login-form [name=email]').fill(account.email);await page.locator('#login-form [name=password]').fill(account.password);await page.locator('#login-form [type=submit]').click();await page.waitForFunction(()=>location.hash==='#overview'&&!document.body.classList.contains('signed-out'));
+  assert.equal(await page.locator('#onboarding-form').count(),0,'first sign-in enters the app without the setup screen');
+  assert.equal(await page.locator('.risk-footer').isVisible(),false);
+  await page.reload();await page.waitForSelector('body:not(.signed-out)');assert.equal(await page.locator('#onboarding-form').count(),0,'reload does not force incomplete setup');
+  for(const theme of ['light','dark']){
+    if(await page.locator('html').getAttribute('data-theme')!==theme)await page.locator('.topbar [data-theme-toggle]').click();
+    for(const route of ['insights','overview','news','following','account','search','alerts','sources','devices']){
+      await navigateUI(page,route);assert.equal(await page.locator('.risk-footer').isVisible(),route==='insights',`AI disclaimer visibility on ${route} in ${theme}`);
+    }
+  }
+  await navigateUI(page,'welcome');await page.waitForSelector('#onboarding-form');
+  assert.equal(await page.locator('.risk-footer').isVisible(),false);
   await page.locator('#onboarding-form [value=AAPL]').check();await page.locator('#onboarding-form [value=NVDA]').check();
   if(width>=768){const submit=await page.locator('#onboarding-form [type=submit]').boundingBox(),dock=await page.locator('.app-dock').boundingBox();assert.ok(submit.y+submit.height<dock.y,'initial desktop/tablet save action is clear of the dock');}
   await page.screenshot({path:`${artifacts}/welcome-${width}.png`,fullPage:true,animations:'disabled'});
@@ -59,5 +70,5 @@ try{
  await page.route('**/api/sessions',async route=>{requested();await gate;await route.fulfill({json:{sessions:[{id:'late',name:'Private old device',createdAt:Date.now(),expiresAt:Date.now()+10000,current:false}]}});});
  await page.goto(base+'/#devices');await ready;await logoutUI(page);await page.waitForSelector('#login-form');release();await page.unrouteAll({behavior:'wait'});
  assert.equal(await page.locator('#main').innerText(),'');assert.equal(await page.getByText('Private old device').count(),0);await context.close();
- console.log('PASS: first-use selection, failed/stale drafts, completion/reload, device ownership/revocation/self-logout, delayed-response privacy and mobile layouts.');
+ console.log('PASS: direct first sign-in, summary-only disclaimer, optional first-use selection, failed/stale drafts, completion/reload, device ownership/revocation/self-logout, delayed-response privacy and mobile layouts.');
 }finally{await browser.close();await server.shutdown();}

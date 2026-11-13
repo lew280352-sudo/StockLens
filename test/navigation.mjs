@@ -6,7 +6,7 @@ export async function navigateUI(page,destination){
  else{await page.locator('[data-mobile-more]').click();await page.locator(`#mobile-menu [data-page=${destination}]`).click();}
 }
 
-// General-flow suites choose the explicit skip action; first-use behavior has its own suite.
+// Fresh logins enter the app directly; also handle a setup page explicitly opened by a suite.
 export async function skipFirstUse(page){
  await page.waitForSelector('body:not(.signed-out)');
  if(await page.locator('#onboarding-form').count()){
