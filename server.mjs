@@ -13,6 +13,7 @@ import { feeds, verifiedFeeds, createNewsService } from './feeds.mjs';
 import { marketFeeds } from './market-news.mjs';
 import { createQuoteService } from './quotes.mjs';
 import { createForecastService } from './forecast.mjs';
+import {canReadArticle,createArticleService} from './articles.mjs';
 import { aiConfiguration, headlineBrief, createAiRouter, createAiService } from './ai.mjs';
 import { createResearchService, validateResearchSymbol, validateResearchMonths } from './research.mjs';
 import { newTotpSecret, verifyTotp, encryptSecret, decryptSecret } from './security.mjs';
@@ -64,7 +65,7 @@ async function passwordHash(password, salt) {return deriveKey(password, salt, 64
 const tokenHash = (token) => createHash('sha256').update(token).digest('hex');
 function tokenFrom(req) {return (req.headers.cookie || '').split(';').map((c) => c.trim()).find((c) => c.startsWith('stocklens_session='))?.slice(18) || '';}
 
-export async function createApp({ databasePath = path.join(root, '.data', 'stocklens.sqlite'), databaseUrl = '', authToken = '', trustedProxyHops = 0, hostingProfile = '', secureCookies = false, publicOrigin = null, refreshNews = false, newsFetcher = fetch, quoteApiKey = '', quoteFetcher = fetch, researchFetcher = fetch, historyApiKey = '', historyFetcher = fetch, aiEnabled = false, aiProvider = 'ollama', aiBaseUrl = 'http://127.0.0.1:11434', aiApiKey = '', aiModel, aiDailyLimit = 20, aiFallbackModel = 'qwen3:8b', aiFetcher = fetch, mfaKeyHex = '', pushPublicKey = '', pushPrivateKey = '', pushSubject = '', pushSender, emailOrigin = '', smtpHost = '', smtpPort = 587, smtpUser = '', smtpPass = '', smtpFrom = '', emailSender, emailLoginEnabled = false } = {}) {
+export async function createApp({ databasePath = path.join(root, '.data', 'stocklens.sqlite'), databaseUrl = '', authToken = '', trustedProxyHops = 0, hostingProfile = '', secureCookies = false, publicOrigin = null, refreshNews = false, newsFetcher = fetch, quoteApiKey = '', quoteFetcher = fetch, researchFetcher = fetch, historyApiKey = '', historyFetcher = fetch, articleFetcher = fetch, aiEnabled = false, aiProvider = 'ollama', aiBaseUrl = 'http://127.0.0.1:11434', aiApiKey = '', aiModel, aiDailyLimit = 20, aiFallbackModel = 'qwen3:8b', aiFetcher = fetch, mfaKeyHex = '', pushPublicKey = '', pushPrivateKey = '', pushSubject = '', pushSender, emailOrigin = '', smtpHost = '', smtpPort = 587, smtpUser = '', smtpPass = '', smtpFrom = '', emailSender, emailLoginEnabled = false } = {}) {
   if (mfaKeyHex && !/^[a-f0-9]{64}$/i.test(mfaKeyHex)) throw new Error('MFA_ENCRYPTION_KEY must be 64 hex characters');
   const backgroundSleeps=hostingProfile==='render-free';
   if(backgroundSleeps){smtpHost='';emailSender=undefined;emailLoginEnabled=false;}
@@ -100,6 +101,7 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
   const quotes = await createQuoteService(db, { apiKey: quoteApiKey, fetcher: quoteFetcher });
   const research = createResearchService({ apiKey: quoteApiKey, fetcher: researchFetcher });
   const forecast = await createForecastService(db, { apiKey: historyApiKey, fetcher: historyFetcher });
+  const articleReader = await createArticleService(db,{fetcher:articleFetcher});
   const push = await createPushService(db, { publicKey: pushPublicKey, privateKey: pushPrivateKey, subject: pushSubject, ...(pushSender ? { sender: pushSender } : {}) });
   const email = await createEmailVerification(db, { origin: emailOrigin || publicOrigin || '', smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom, ...(emailSender ? { sender: emailSender } : {}) });
   const loginOtp = await createLoginOtp(db, { enabled: emailLoginEnabled, smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom, ...(emailSender ? { sender: emailSender } : {}) });
@@ -213,7 +215,7 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
         if ((await currentUser(req))?.id !== user.id) fail(401, 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
         const snapshot = await news.snapshot(),sources = (await userData(user)).state.sources;
         const enabled = new Set(snapshot.sources.filter((feed) => sources.some((source) => source.enabled && source.url.replace(/\/$/, '') === feed.url.replace(/\/$/, ''))).map((feed) => feed.id));
-        return send(res, 200, { ...snapshot, items: snapshot.items.filter((item) => enabled.has(item.feedId)), sources: snapshot.sources.filter((feed) => sources.some((source) => source.url.replace(/\/$/, '') === feed.url.replace(/\/$/, ''))).map((feed) => ({ ...feed, enabled: enabled.has(feed.id) })) });
+        return send(res, 200, { ...snapshot, items: snapshot.items.filter((item) => enabled.has(item.feedId)).map(item=>({...item,bodySupported:!!item.symbol&&canReadArticle(item.url)})), sources: snapshot.sources.filter((feed) => sources.some((source) => source.url.replace(/\/$/, '') === feed.url.replace(/\/$/, ''))).map((feed) => ({ ...feed, enabled: enabled.has(feed.id) })) });
       }
       if (pathname === '/api/research/companies' && req.method === 'GET') {
         const user = await currentUser(req);if (!user) fail(401, 'กรุณาเข้าสู่ระบบ');
@@ -240,6 +242,37 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
         }
         if ((await currentUser(req))?.id !== user.id) fail(401, 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
         return send(res, 200, { ...result, summary, aiError });
+      }
+      if(pathname==='/api/ai/article'&&req.method==='POST'){
+        const user=await currentUser(req);if(!user)fail(401,'กรุณาเข้าสู่ระบบ');
+        const input=await body(req),id=input.articleId;
+        if(typeof id!=='string'||!/^[a-f0-9]{24}$/.test(id))fail(400,'เลือกบทความจากรายการข่าว');
+        async function selectedArticle(){
+          const snapshot=await news.snapshot(),preferences=await userData(user);
+          if(!preferences.state)fail(401,'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+          const sources=preferences.state.sources;
+          const enabled=new Set(snapshot.sources.filter(feed=>sources.some(source=>source.enabled&&source.url.replace(/\/$/,'')===feed.url.replace(/\/$/,''))).map(feed=>feed.id));
+          const article=snapshot.items.find(item=>item.id===id&&enabled.has(item.feedId));
+          if(!article)fail(409,'ข่าวนี้ไม่อยู่ในแหล่งที่เปิดไว้ กรุณาโหลดรายการข่าวใหม่');
+          if(!symbols.has(article.symbol)||!canReadArticle(article.url))fail(422,'แหล่งนี้ยังอ่านเนื้อหาอัตโนมัติไม่ได้ เปิดอ่านต้นฉบับได้ตามปกติ');
+          return article;
+        }
+        const article=await selectedArticle();limitAiQuestion(user);
+        let result;
+        try{
+          const content=await articleReader.read(article.url);
+          if((await currentUser(req))?.id!==user.id)fail(401,'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+          await selectedArticle();
+          result=await ai.summarizeArticle(article,content);
+        }catch(error){
+          if(error.status)throw error;
+          const message={unsupported_article:'แหล่งนี้ยังอ่านเนื้อหาอัตโนมัติไม่ได้',article_too_large:'หน้าเว็บนี้ใหญ่เกินกว่าจะอ่านในครั้งเดียว',article_unreadable:'ยังแยกเนื้อหาบทความจากหน้านี้ไม่ได้',article_blocked:'เว็บต้นทางไม่เปิดให้อ่านเนื้อหาอัตโนมัติ',article_unavailable:'ดึงเนื้อหาบทความไม่สำเร็จ กรุณาลองใหม่',article_busy:'กำลังอ่านบทความหลายรายการ กรุณารอสักครู่',disabled:'AI ยังไม่เปิดใช้งาน',not_configured:'ยังไม่ได้เชื่อมบริการ AI',quota:'โควตา AI หมดชั่วคราว คุณยังอ่านข่าวต้นฉบับได้',credentials:'บริการ AI ปฏิเสธสิทธิ์การเข้าถึง',invalid_output:'AI ส่งคำตอบไม่ครบ กรุณาลองใหม่'}[error.code]||'สรุปเนื้อหาบทความไม่ได้ในขณะนี้ กรุณาลองใหม่';
+          if(error.code==='quota')return send(res,429,{error:message,retryAt:error.retryAt});
+          fail(['unsupported_article','article_too_large','article_unreadable','article_blocked'].includes(error.code)?422:503,message);
+        }
+        if((await currentUser(req))?.id!==user.id)fail(401,'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+        await selectedArticle();
+        return send(res,200,result);
       }
       if (pathname === '/api/ai/summary' && req.method === 'POST') {
         const user = await currentUser(req);if (!user) fail(401, 'กรุณาเข้าสู่ระบบ');
@@ -554,7 +587,7 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
         res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'public, max-age=86400' });
         return res.end(req.method === 'HEAD' ? undefined : data);
       }
-      const assets = { '/appearance.js': ['appearance.js', 'text/javascript; charset=utf-8'], '/appearance.css': ['appearance.css', 'text/css; charset=utf-8'], '/account-ui.js': ['account-ui.js', 'text/javascript; charset=utf-8'], '/icons.js': ['icons.js','text/javascript'], '/vendor/external-link.svg': ['vendor/external-link.svg','image/svg+xml'], '/quotes-ui.js': ['quotes-ui.js', 'text/javascript'], '/': ['index.html', 'text/html'], '/index.html': ['index.html', 'text/html'], '/verify-email.html': ['verify-email.html', 'text/html'], '/verify-email.js': ['verify-email.js', 'text/javascript'], '/app.js': ['app.js', 'text/javascript'], '/research-ui.js': ['research-ui.js', 'text/javascript'], '/auth.js': ['auth.js', 'text/javascript'], '/security-ui.js': ['security-ui.js', 'text/javascript'], '/push-ui.js': ['push-ui.js', 'text/javascript'], '/styles.css': ['styles.css', 'text/css'], '/theme.css': ['theme.css', 'text/css'], '/logo.css': ['logo.css', 'text/css'], '/features.css': ['features.css', 'text/css'], '/ui-polish.css': ['ui-polish.css', 'text/css'], '/catalog.js': ['catalog.js', 'text/javascript'], '/company-icons.js': ['company-icons.js', 'text/javascript'], '/pwa.js': ['pwa.js', 'text/javascript'], '/sw.js': ['sw.js', 'text/javascript'], '/manifest.webmanifest': ['manifest.webmanifest', 'application/manifest+json'], '/offline.html': ['offline.html', 'text/html'], '/icon.svg': ['icon.svg', 'image/svg+xml'], '/icon-192.png': ['icon-192.png', 'image/png'], '/icon-512.png': ['icon-512.png', 'image/png'], '/apple-touch-icon.png': ['apple-touch-icon.png', 'image/png'] };
+      const assets = { '/article-ui.js': ['article-ui.js', 'text/javascript'], '/appearance.js': ['appearance.js', 'text/javascript; charset=utf-8'], '/appearance.css': ['appearance.css', 'text/css; charset=utf-8'], '/account-ui.js': ['account-ui.js', 'text/javascript; charset=utf-8'], '/icons.js': ['icons.js','text/javascript'], '/vendor/external-link.svg': ['vendor/external-link.svg','image/svg+xml'], '/quotes-ui.js': ['quotes-ui.js', 'text/javascript'], '/': ['index.html', 'text/html'], '/index.html': ['index.html', 'text/html'], '/verify-email.html': ['verify-email.html', 'text/html'], '/verify-email.js': ['verify-email.js', 'text/javascript'], '/app.js': ['app.js', 'text/javascript'], '/research-ui.js': ['research-ui.js', 'text/javascript'], '/auth.js': ['auth.js', 'text/javascript'], '/security-ui.js': ['security-ui.js', 'text/javascript'], '/push-ui.js': ['push-ui.js', 'text/javascript'], '/styles.css': ['styles.css', 'text/css'], '/theme.css': ['theme.css', 'text/css'], '/logo.css': ['logo.css', 'text/css'], '/features.css': ['features.css', 'text/css'], '/ui-polish.css': ['ui-polish.css', 'text/css'], '/catalog.js': ['catalog.js', 'text/javascript'], '/company-icons.js': ['company-icons.js', 'text/javascript'], '/pwa.js': ['pwa.js', 'text/javascript'], '/sw.js': ['sw.js', 'text/javascript'], '/manifest.webmanifest': ['manifest.webmanifest', 'application/manifest+json'], '/offline.html': ['offline.html', 'text/html'], '/icon.svg': ['icon.svg', 'image/svg+xml'], '/icon-192.png': ['icon-192.png', 'image/png'], '/icon-512.png': ['icon-512.png', 'image/png'], '/apple-touch-icon.png': ['apple-touch-icon.png', 'image/png'] };
       const asset = assets[pathname];if (!asset || !['GET', 'HEAD'].includes(req.method)) fail(404, 'ไม่พบหน้าเว็บ');
       const data = readFileSync(path.join(root, 'dist', asset[0]));res.writeHead(200, { 'Content-Type': asset[1] + '; charset=utf-8' });res.end(req.method === 'HEAD' ? undefined : data);
     } catch (error) {send(res, error.status || 500, { error: error.status ? error.message : 'ระบบขัดข้อง กรุณาลองใหม่' });if (!error.status) console.error('StockLens request failed');}
@@ -566,7 +599,7 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
     cycle();newsTimer=setInterval(cycle,15*60*1000);newsTimer.unref();
   });
   function cleanup(){
-    if(!cleanupPromise){stopping=true;clearInterval(newsTimer);news.close();quotes.close();forecast.close();ai.close();email.close();loginOtp.close();cleanupPromise=newsCycle.then(()=>db.close());}
+    if(!cleanupPromise){stopping=true;clearInterval(newsTimer);news.close();quotes.close();forecast.close();ai.close();email.close();loginOtp.close();cleanupPromise=Promise.all([newsCycle,articleReader.close()]).then(()=>db.close());}
     return cleanupPromise;
   }
   server.on('close',()=>{cleanup().catch(()=>{});});

@@ -64,3 +64,7 @@ The theme selector now offers only light and dark, preserving existing explicit 
 The topbar avatar now opens #account instead of logging out. The page shows the current account name/email, saved watchlist count, enabled-source count and company list, with links to devices, settings, sources and export. The only direct logout control is a red button at the end of that page. No backend or account schema changes are required.
 
 Playwright verifies avatar navigation preserves the session, counts follow saved edits, #account survives reload, light/dark profiles fit 390/768/1440px and logout remains reachable. Existing general, responsive, reference, appearance, research, security/privacy-race and PWA suites pass through the updated account logout flow. The isolated 20-user scenario report records 20 passed and zero failed, including logout/login persistence.
+
+## Article-body summaries
+
+81 unit/API tests pass, including extracted body-only facts in model input, content-hash cache invalidation, no scripts/resource execution, approved publisher/path checks, rejected redirects, bounded HTML/text, persistent coalesced cache and two concurrent page reads. API coverage verifies authentication, source ownership, rechecking logout/source changes before generation, and explicit errors rather than headline substitution. The article browser suite covers source links, the news entry action, complete/partial/blocked states, light/dark at 390/768/1440px and delayed results after logout. Existing general and PWA suites pass.

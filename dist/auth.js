@@ -25,7 +25,7 @@ function showLoginChallenge(result,email,password){
 function showSignedOut(mode='register',message='',email=''){
   authEpoch++;
   clearTimeout(toastTimer);$('#toast').textContent='';$('#toast').classList.remove('show');
-  currentUser=null;stateRevision=0;state=structuredClone(defaults);committedState=structuredClone(defaults);query='';newsFilter='all';selectedStock='AAPL';resetNews();resetQuotes();resetAI();resetForecast();resetResearch();
+  currentUser=null;stateRevision=0;state=structuredClone(defaults);committedState=structuredClone(defaults);query='';newsFilter='all';selectedStock='AAPL';resetNews();resetQuotes();resetAI();resetArticleUI();resetForecast();resetResearch();
   if($('#mobile-menu').open)$('#mobile-menu').close();if($('#modal').open)$('#modal').close();$('#modal-body').innerHTML='';$('#main').innerHTML='';
   document.querySelectorAll('[data-user-name],[data-user-email],[data-user-avatar]').forEach(el=>el.textContent='');
   document.body.classList.add('signed-out');history.replaceState(null,'','#'+mode);authForm(mode,message,email);window.scrollTo(0,0);
@@ -33,7 +33,7 @@ function showSignedOut(mode='register',message='',email=''){
 function enterApp(result){
   authEpoch++;
   pendingLogin=null;
-  currentUser=result.user;state=result.state;newsFilter=state.watchlist.length?'watchlist':'all';stateRevision=result.revision;committedState=structuredClone(state);selectedStock=state.watchlist.find(symbol=>stocks.some(s=>s.symbol===symbol))||'AAPL';resetNews();resetQuotes();resetAI();resetForecast();resetResearch();
+  currentUser=result.user;state=result.state;newsFilter=state.watchlist.length?'watchlist':'all';stateRevision=result.revision;committedState=structuredClone(state);selectedStock=state.watchlist.find(symbol=>stocks.some(s=>s.symbol===symbol))||'AAPL';resetNews();resetQuotes();resetAI();resetArticleUI();resetForecast();resetResearch();
   document.querySelectorAll('[data-user-name]').forEach(el=>el.textContent=currentUser.name);
   document.querySelectorAll('[data-user-email]').forEach(el=>el.textContent=currentUser.email);
   document.querySelectorAll('[data-user-avatar]').forEach(el=>el.textContent=Array.from(currentUser.name)[0].toUpperCase());
