@@ -63,7 +63,7 @@ try{
    await page.setViewportSize({width,height:950});
   }
   await page.request.post(base+'/api/register',{headers:{Origin:base},data:{name:'บัญชีทดสอบ UI',email,password}});await page.locator('[data-auth-mode=login]').first().click();await page.locator('#login-form [name=password]').fill(password);await page.locator('#login-form [type=submit]').click();await page.waitForSelector('body:not(.signed-out)');
-  assert.equal(await readable(page,'.breadcrumb b','body'),true,'current page breadcrumb remains readable on the dark frame');
+  assert.equal(await page.locator('.breadcrumb').count(),0,'topbar omits the repeated page label');
   const dock=page.locator('.app-dock');assert.equal(await dock.isVisible(),true,'floating dock is available at every width');assert.equal(await dock.locator('button').count(),5);await dock.locator('[data-page=overview]').focus();await page.keyboard.press('ArrowRight');assert.equal(await dock.locator('[data-page=news]').evaluate(el=>el===document.activeElement),true);await page.keyboard.press('Enter');await page.waitForFunction(()=>location.hash==='#news');
   for(const destination of ['overview','news','following','insights']){
    await dock.locator(`[data-page=${destination}]`).click();await page.waitForFunction(route=>location.hash==='#'+route,destination);

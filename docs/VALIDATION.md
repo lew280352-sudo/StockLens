@@ -47,7 +47,7 @@ One independent whole-branch review found five important issues. Regression test
 
 ## 13 November: appearance and online AI
 
-73 unit/API tests pass, including Gemini header-only credentials, bounded responses, structured output and source-ID validation, a persistent per-provider generation cap, cached results and source-enabled brief fallback. Playwright passes system/light/dark with reload/cross-tab persistence, denied localStorage, 4.5:1 selected text contrast and all routes at 390/768/1440px. General UI, responsive, reference, account-tools and PWA regressions pass. Gemini transport/quotas use test fixtures; this is not a claim of successful live Gemini generation.
+73 unit/API tests pass, including Gemini header-only credentials, bounded responses, structured output and source-ID validation, a persistent per-provider generation cap, cached results and source-enabled brief fallback. Playwright passes light/dark with reload/cross-tab persistence, denied localStorage, 4.5:1 selected text contrast and all routes at 390/768/1440px. General UI, responsive, reference, account-tools and PWA regressions pass. Gemini transport/quotas use test fixtures; this is not a claim of successful live Gemini generation.
 
 A fresh live probe retained the test account and its AAPL/NVDA watchlist, fetched 38 headlines, and found the running service still selected Ollama with summary HTTP 503. Deploy and actual provider generation must be checked after the update. See [online AI setup](AI_ONLINE.md).
 
@@ -56,3 +56,5 @@ The update is now live on Render: app/appearance asset hashes match commit e36b9
 Groq follow-up fixes expand the Thai summary/answer output budgets to 2400/1600 tokens, reject truncated structured responses, classify bounded provider errors without returning raw text, and distinguish the app daily cap from provider 429 with a validated retry time. Targeted AI/API regressions pass; the live probe verifies model output rather than model-list availability alone.
 
 [CI for code commit 6d0b150](https://github.com/lew280352-sudo/StockLens/actions/runs/43385728800) passed all three jobs. A separate live browser probe rendered the real Groq summary, five source links and the enabled question form at 390/1440px with zero JavaScript errors; its temporary account was deleted too.
+
+The theme selector now offers only light and dark, preserving existing explicit choices and using dark for legacy system preferences. The repeated breadcrumb beside the brand was removed. The appearance and reference suites cover both themes and navigation without the breadcrumb.

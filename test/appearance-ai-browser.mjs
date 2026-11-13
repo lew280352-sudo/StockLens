@@ -22,15 +22,13 @@ try {
     const context = await browser.newContext({viewport: {width, height: 950}, colorScheme: 'light'}), page = await context.newPage(), errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(base);await page.waitForSelector('#register-form');
-    assert.equal(await page.locator('html').getAttribute('data-theme'), 'light');
-    for (const mode of ['light', 'dark', 'system']) {
+    assert.equal(await page.locator('html').getAttribute('data-theme'), 'dark');
+    for (const mode of ['light', 'dark']) {
       await page.locator('.auth-theme-toggle').click();assert.equal(await page.locator('html').getAttribute('data-appearance'), mode);
-      if (mode !== 'system') {
-        assert.ok(await contrast(page, '.auth-content h1', '.auth-panel') >= 4.5);
-        await page.screenshot({path: `${artifacts}/auth-${mode}-${width}.png`, fullPage: true, animations: 'disabled'});
-      }
+      assert.ok(await contrast(page, '.auth-content h1', '.auth-panel') >= 4.5);
+      await page.screenshot({path: `${artifacts}/auth-${mode}-${width}.png`, fullPage: true, animations: 'disabled'});
     }
-    await page.emulateMedia({colorScheme: 'dark'});await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
+    await page.emulateMedia({colorScheme: 'light'});assert.equal(await page.locator('html').getAttribute('data-theme'), 'dark', 'OS changes do not switch the selected theme');
     await page.locator('.auth-theme-toggle').click();await page.emulateMedia({colorScheme: 'dark'});assert.equal(await page.locator('html').getAttribute('data-theme'), 'light', 'explicit choice overrides OS');
     await page.reload();await page.waitForSelector('#register-form');assert.equal(await page.locator('html').getAttribute('data-theme'), 'light');
     const account = {name: 'Theme test', email: `theme-${width}@example.com`, password: 'appearance-test-password'};
@@ -56,7 +54,7 @@ try {
       await navigateUI(page, 'insights');
     }
     const other = await context.newPage();await other.goto(base);await other.waitForSelector('body:not(.signed-out)');
-    await page.locator('.topbar [data-theme-toggle]').click();await other.waitForFunction(() => document.documentElement.dataset.appearance === 'system');
+    await page.locator('.topbar [data-theme-toggle]').click();await other.waitForFunction(() => document.documentElement.dataset.appearance === 'light');
     assert.deepEqual(errors, []);await context.close();
   }
   const blockedStorage = await browser.newContext();await blockedStorage.addInitScript(() => {Storage.prototype.getItem = () => {throw new Error('blocked');};Storage.prototype.setItem = () => {throw new Error('blocked');};});
@@ -81,5 +79,5 @@ try {
     await page.locator('#ai-question').fill('ประกาศอีกครั้งได้ไหม?');await page.locator('#ai-question-form button').click();await page.waitForSelector('.ai-qa .form-error');assert.match(await page.locator('.ai-qa .form-error').innerText(), /โควตา/);
     await page.locator('[data-headline-brief]').click();await page.waitForFunction(() => aiSummaries.AAPL?.generated === false);assert.equal(await page.locator('#ai-question-form').count(), 0);assert.equal(await page.locator('.ai-sources a').count(), 1);assert.deepEqual(errors, []);await page.close();
   } finally {await connected.shutdown();}
-  console.log('PASS: system/light/dark, reload and cross-tab persistence, denied storage, accessible contrast, no-key live-source brief and responsive routes at 390/768/1440.');
+  console.log('PASS: light/dark only, reload and cross-tab persistence, denied storage, accessible contrast, no-key live-source brief and responsive routes at 390/768/1440.');
 } finally {await browser.close();await server.shutdown();}
