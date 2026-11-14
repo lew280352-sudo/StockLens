@@ -31,6 +31,9 @@ jobs:
       - run: npm run test:appearance-ui
         env:
           APPEARANCE_ARTIFACT_DIR: artifacts/appearance
+      - run: npm run test:comparison-ui
+        env:
+          COMPARISON_ARTIFACT_DIR: artifacts/quote-comparison
       - run: npm run test:quotes-ui
         env:
           QUOTE_ARTIFACT_DIR: artifacts/quotes
@@ -49,6 +52,7 @@ jobs:
             artifacts/appearance
             artifacts/article
             artifacts/quotes
+            artifacts/quote-comparison
           if-no-files-found: ignore
       - run: npm run test:research-ui
       - run: npm run test:security-ui

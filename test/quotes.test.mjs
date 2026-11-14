@@ -35,3 +35,20 @@ test('quote API authenticates, uses only followed companies, and rechecks logout
   const pending = call('/api/quotes?symbols=MSFT', null, cookie);await ready;await call('/api/logout', {}, cookie);release();assert.equal((await pending).status, 401);assert.equal(calls, 1);
   const next = await call('/api/login', account),newCookie = next.headers.get('set-cookie').split(';')[0];const result = await (await call('/api/quotes', null, newCookie)).json();assert.deepEqual(result.items.map((i) => i.symbol), ['AAPL']);assert.equal(result.items[0].quote.price, 123);assert.ok(!JSON.stringify(result).includes('fixture-secret'));
 });
+
+test('daily quote comparisons use the provider previous close and omit missing or invalid baselines',async()=>{
+  const db=await openDatabase({databasePath:':memory:'});let time=Date.now(),previousClose=80,calls=0;
+  const service=await createQuoteService(db,{apiKey:'fixture-secret',now:()=>time,fetcher:async(url)=>{assert.match(url,/\/api\/v1\/quote\?symbol=AAPL$/);calls++;return Response.json({c:100,pc:previousClose,t:Math.floor(time/1000)});}});
+  try{
+    for(const [baseline,change,percent] of [[80,20,25],[125,-25,-20],[100,0,0]]){
+      previousClose=baseline;time+=61000;const quote=(await service.get(['AAPL'])).items[0].quote;
+      assert.equal(quote.previousClose,baseline);assert.equal(quote.change,change);assert.ok(Math.abs(quote.changePercent-percent)<1e-9);
+      assert.equal((await service.get(['AAPL'])).items[0].quote.previousClose,baseline,'the cached quote keeps the same baseline');
+    }
+    for(const baseline of [undefined,null,0,-1,'80',Number.MIN_VALUE]){
+      previousClose=baseline;time+=61000;const quote=(await service.get(['AAPL'])).items[0].quote;
+      assert.equal(quote.price,100);assert.equal(quote.previousClose,undefined);assert.equal(quote.change,undefined);assert.equal(quote.changePercent,undefined);
+    }
+    assert.equal(calls,9);
+  }finally{service.close();await db.close();}
+});

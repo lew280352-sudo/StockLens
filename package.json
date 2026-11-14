@@ -25,7 +25,8 @@
     "check:services": "node --env-file-if-exists=.env scripts/check-services.mjs",
     "find:legacy": "node scripts/find-legacy-data.mjs",
     "test:password-ui": "node test/password-input-browser.mjs",
-    "test:quotes-ui": "node test/quotes-browser.mjs"
+    "test:quotes-ui": "node test/quotes-browser.mjs",
+    "test:comparison-ui": "node test/quote-comparison-browser.mjs"
   },
   "devDependencies": {
     "playwright": "^1.58.2"
