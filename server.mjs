@@ -175,12 +175,13 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
   }
   const server = http.createServer(async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');res.setHeader('X-Content-Type-Options', 'nosniff');res.setHeader('Referrer-Policy', 'no-referrer');res.setHeader('X-Frame-Options', 'DENY');
-    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
     try {
       const localHosts = [`127.0.0.1:${server.address().port}`, `localhost:${server.address().port}`];
       const allowed = publicOrigin ? [publicHost, ...localHosts] : localHosts;
       if (!allowed.includes(req.headers.host)) fail(403, 'Host ไม่ได้รับอนุญาต');
       const origin = req.headers.host === publicHost ? publicOrigin : `http://${req.headers.host}`;
+      if(secureCookies&&req.headers.host===publicHost)res.setHeader('Strict-Transport-Security','max-age=31536000');
       if (!['GET', 'HEAD'].includes(req.method) && req.headers.origin !== origin) fail(403, 'คำขอไม่ได้มาจากเว็บไซต์นี้');
       const pathname = new URL(req.url, origin).pathname;
       if (pathname === '/api/health' && req.method === 'GET') {await db.get('SELECT 1', []);return send(res, 200, { ok: true, version: '0.9.2' });}
@@ -365,7 +366,11 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
         const user=await currentUser(req);if(!user)fail(401,'กรุณาเข้าสู่ระบบ');
         const input=await body(req);await limit(req,user.email);const credentialHash=await checkPassword(user,input.password);
         const recoveryCode=newRecoveryCode();
-        await db.transaction(async tx=>{await requireSession(tx,req,user.id,credentialHash);await tx.run('INSERT INTO recovery_codes VALUES(?,?) ON CONFLICT(user_id) DO UPDATE SET code_hash=excluded.code_hash',[user.id,tokenHash(recoveryCode)]);});
+        await db.transaction(async tx=>{
+          await requireSession(tx,req,user.id,credentialHash);
+          await checkMfa(user.id,input.totp,{consume:true,connection:tx});
+          await tx.run('INSERT INTO recovery_codes VALUES(?,?) ON CONFLICT(user_id) DO UPDATE SET code_hash=excluded.code_hash',[user.id,tokenHash(recoveryCode)]);
+        });
         return send(res,200,{recoveryCode});
       }
       if (pathname === '/api/security' && req.method === 'GET') {

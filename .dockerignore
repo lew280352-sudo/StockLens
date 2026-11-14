@@ -10,3 +10,10 @@ test
 docs
 *.sqlite*
 *.log
+
+android
+.superpowers
+.taste-skill
+*.p12
+*.jks
+*.keystore

@@ -31,11 +31,18 @@ try {
   assert.equal(await page.locator('#security-card [data-security-setup]').isEnabled(), true);
   await page.locator('#security-card [data-security-setup]').click();await page.locator('#mfa-setup-form [name=password]').fill('correct-test-password');await page.locator('#mfa-setup-form [type=submit]').click();
   await page.waitForSelector('#mfa-enable-form');const secret = (await page.locator('.mfa-secret').innerText()).trim();
-  await page.locator('#mfa-enable-form [name=code]').fill(totpCode(secret, Math.floor(Date.now() / 30000)));
+  const setupStep=Math.floor(Date.now()/30000);
+  await page.locator('#mfa-enable-form [name=code]').fill(totpCode(secret,setupStep));
   await page.locator('#mfa-enable-form [type=submit]').click();await page.waitForSelector('#security-card [data-security-disable]');
+  await page.locator('[data-new-recovery]').click();await page.locator('#new-recovery-form [name=password]').fill('correct-test-password');
+  await page.locator('#new-recovery-form [name=totp]').fill(totpCode(secret,setupStep+1));
+  const rotation=page.waitForResponse(r=>r.url()===base+'/api/recovery-code');
+  await page.locator('#new-recovery-form [type=submit]').click();assert.equal((await rotation).status(),200);
+  await page.waitForSelector('.recovery-notice input');assert.match(await page.locator('.recovery-notice input').inputValue(),/^[a-f0-9]{48}$/);
+  await page.keyboard.press('Escape');
   await page.locator('.topbar [data-logout]').click();await page.waitForSelector('#login-form');
   await page.locator('#login-form [name=email]').fill('security-ui@example.com');await page.locator('#login-form [name=password]').fill('correct-test-password');
   await page.locator('#login-form [type=submit]').click();await page.waitForSelector('#login-challenge-form');
   assert.match(await page.locator('#login-challenge-form').innerText(), /Authenticator/);
-  assert.deepEqual(errors, []);console.log('PASS: weekly chart, MFA setup, and second-factor login requirement in browser');
+  assert.deepEqual(errors, []);console.log('PASS: weekly chart, MFA setup, fresh TOTP for recovery-code rotation, and second-factor login requirement in browser');
 } finally {await browser?.close();await server.shutdown();}

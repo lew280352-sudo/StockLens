@@ -28,7 +28,7 @@
   },
   "dependencies": {
     "@libsql/client": "^0.18.0",
-    "fast-xml-parser": "^5.11.2",
+    "fast-xml-parser": "^5.12.1",
     "nodemailer": "^10.1.7",
     "web-push": "^3.6.7"
   }
