@@ -6,7 +6,7 @@ import {createApp} from '../server.mjs';
 import {navigateUI, skipFirstUse} from './navigation.mjs';
 
 const artifacts = process.env.APPEARANCE_ARTIFACT_DIR || 'test-artifacts/appearance';mkdirSync(artifacts, {recursive: true});
-const newsFetcher = async () => new Response(`<rss><channel><item><title>Apple introduces a new product</title><link>https://www.apple.com/newsroom/test</link><pubDate>${new Date().toUTCString()}</pubDate></item></channel></rss>`);
+const newsFetcher = async () => new Response(`<rss><channel>${Array.from({length: 10}, (_, index) => `<item><title>Apple introduces a new product ${index + 1}</title><link>https://www.apple.com/newsroom/test-${index + 1}</link><pubDate>${new Date(Date.now() - index * 60000).toUTCString()}</pubDate></item>`).join('')}</channel></rss>`);
 const server = await createApp({databasePath: ':memory:', newsFetcher, aiEnabled: true, aiProvider: 'gemini'});
 server.listen(0, '127.0.0.1');await once(server, 'listening');
 const base = `http://127.0.0.1:${server.address().port}`, browser = await chromium.launch();
@@ -37,17 +37,29 @@ try {
     await page.reload();await skipFirstUse(page);await navigateUI(page, 'insights');
     await page.waitForFunction(() => !aiStatus.available && aiStatus.digestAvailable);
     assert.equal(await page.locator('[data-ai-summary]').isEnabled(), true);
-    await page.locator('[data-ai-summary]').click();await page.waitForSelector('.ai-sources a');
+    await page.locator('[data-ai-summary]').click();await page.waitForSelector('.ai-references summary');
     assert.equal(await page.locator('#ai-question-form').count(), 0);
     assert.match(await page.locator('.ai-card').innerText(), /ไม่ใช่ผลสรุปจาก AI/);
-    assert.equal(await page.locator('.ai-sources a').getAttribute('href'), 'https://www.apple.com/newsroom/test');
+    assert.equal(await page.locator('.ai-sources a').count(), 10);
+    assert.equal(await page.locator('.ai-sources a').first().getAttribute('href'), 'https://www.apple.com/newsroom/test-1');
     for (const mode of ['light', 'dark']) {
       if (mode === 'dark') await page.locator('.topbar [data-theme-toggle]').click();
       assert.equal(await page.locator('html').getAttribute('data-theme'), mode);
       assert.ok(await contrast(page, '.subtitle', 'body') >= 4.5);
       assert.ok(await contrast(page, '.ai-card>p', '.ai-card') >= 4.5);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+      assert.equal(await page.locator('.ai-references').getAttribute('open'), null);
+      assert.equal(await page.locator('.ai-references a').first().isVisible(), false);
+      assert.match(await page.locator('.ai-references summary').innerText(), /แหล่งอ้างอิง.*10 ข่าว/s);
       await page.screenshot({path: `${artifacts}/insights-${mode}-${width}.png`, fullPage: true, animations: 'disabled'});
+      await page.locator('.ai-references summary').focus();await page.keyboard.press('Enter');
+      assert.equal(await page.locator('.ai-references a').first().isVisible(), true);
+      assert.match(await page.locator('.ai-references').innerText(), /เผยแพร่.*น\. \(ไทย\)/s);
+      assert.equal(await page.locator('.ai-references a').first().getAttribute('rel'), 'noopener noreferrer');
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+      await page.screenshot({path: `${artifacts}/references-${mode}-${width}.png`, fullPage: true, animations: 'disabled'});
+      await page.locator('.ai-references summary').focus();await page.keyboard.press('Space');
+      assert.equal(await page.locator('.ai-references a').first().isVisible(), false);
       for (const route of ['overview', 'following', 'welcome', 'devices', 'sources', 'alerts', 'search', 'account']) {
         await navigateUI(page, route);assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `${mode}/${route}/${width}`);
       }
@@ -75,9 +87,10 @@ try {
     assert.match(await page.locator('.ai-badge').first().innerText(), /Gemini พร้อมใช้/);
     await page.locator('[data-ai-summary]').click();await page.waitForSelector('#ai-question-form');
     assert.match(await page.locator('.ai-confidence').innerText(), /Gemini/);
+    assert.equal(await page.locator('.ai-references a').first().isVisible(), false);
     await page.locator('#ai-question').fill('ประกาศเกี่ยวกับอะไร?');await page.locator('#ai-question-form button').click();await page.waitForSelector('.ai-answer');assert.equal(await page.locator('.ai-answer-sources a').count(), 1);
     await page.locator('#ai-question').fill('ประกาศอีกครั้งได้ไหม?');await page.locator('#ai-question-form button').click();await page.waitForSelector('.ai-qa .form-error');assert.match(await page.locator('.ai-qa .form-error').innerText(), /โควตา/);
-    await page.locator('[data-headline-brief]').click();await page.waitForFunction(() => aiSummaries.AAPL?.generated === false);assert.equal(await page.locator('#ai-question-form').count(), 0);assert.equal(await page.locator('.ai-sources a').count(), 1);assert.deepEqual(errors, []);await page.close();
+    await page.locator('[data-headline-brief]').click();await page.waitForFunction(() => aiSummaries.AAPL?.generated === false);assert.equal(await page.locator('#ai-question-form').count(), 0);assert.equal(await page.locator('.ai-sources a').count(), 10);assert.equal(await page.locator('.ai-references a').first().isVisible(), false);assert.deepEqual(errors, []);await page.close();
   } finally {await connected.shutdown();}
   console.log('PASS: light/dark only, reload and cross-tab persistence, denied storage, accessible contrast, no-key live-source brief and responsive routes at 390/768/1440.');
 } finally {await browser.close();await server.shutdown();}

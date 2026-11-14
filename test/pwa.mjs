@@ -37,7 +37,9 @@ try {
   const restored = await page.evaluate(() => fetch('/api/news').then((r) => r.json()));assert.ok(restored.items.some((n) => n.symbol === 'MSFT'));
   await navigateUI(page,'insights');await page.locator('#ai-symbol').selectOption('MSFT');await page.locator('[data-ai-summary]').click();await page.waitForFunction(() => document.querySelector('.ai-trend')?.textContent.includes('สรุป Microsoft'));assert.match(await page.locator('.ai-card').innerText(), /ข้อมูลมีเฉพาะหัวข้อ/);assert.equal(await page.locator('.ai-sources a').count(), 1);
   assert.match(await page.locator('.ai-timeline').innerText(), /ข่าวล่าสุดที่ใช้.*AI สรุปเมื่อ/s);
+  await page.locator('.ai-references summary').click();
   assert.match(await page.locator('.ai-sources').innerText(), /เผยแพร่.*น\. \(ไทย\)/s);
+  await page.locator('.ai-references summary').click();
   await page.locator('#ai-question').fill('ข่าวนี้เกี่ยวกับอะไร?');await page.locator('#ai-question-form button').click();
   await page.waitForSelector('.ai-answer');assert.match(await page.locator('.ai-answer').innerText(), /หัวข้อของ Microsoft/);assert.equal(await page.locator('.ai-answer-sources a').count(), 1);
   await logoutUI(page);await page.waitForSelector('#login-form');
