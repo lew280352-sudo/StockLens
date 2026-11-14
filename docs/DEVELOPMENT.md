@@ -6,12 +6,12 @@
 
 ## เตรียมเครื่องและรัน
 
-ใช้ Git, Node.js **24 ขึ้นไป** และอินเทอร์เน็ต ตัวอย่างนี้ดึงซอร์สที่ตรงกับ Android 0.9.2 Beta
+ใช้ Git, Node.js **24 ขึ้นไป** และอินเทอร์เน็ต ตัวอย่างนี้ดึง branch ที่ใช้กับบริการออนไลน์ เพื่อรับการแก้ไขล่าสุด รวมแพตช์ความปลอดภัย
 
 ### Windows
 
 ```powershell
-git clone --branch android-v0.9.2-beta.1 https://github.com/lew280352-sudo/StockLens.git
+git clone --branch feat/stocklens-ui-and-online https://github.com/lew280352-sudo/StockLens.git
 cd StockLens
 npm.cmd ci
 npm.cmd start
@@ -22,7 +22,7 @@ npm.cmd start
 ### macOS และ Linux
 
 ```sh
-git clone --branch android-v0.9.2-beta.1 https://github.com/lew280352-sudo/StockLens.git
+git clone --branch feat/stocklens-ui-and-online https://github.com/lew280352-sudo/StockLens.git
 cd StockLens
 npm ci
 npm start
