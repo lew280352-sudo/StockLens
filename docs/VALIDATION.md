@@ -8,6 +8,12 @@ AI Insights opens the article reader and an article-scoped question form. Relate
 
 87 unit/API tests pass, including body-only facts in the question prompt, forged citations, missing/disabled sources, blocked pages, and session/source/account-deletion races before generation plus source changes after generation. Browser checks cover article questions and citations, late answers after logout, responsive themes, related news without a model, quota handling, and PWA privacy.
 
+## Free technical trend display (14 November 2026)
+
+When the native history API is absent, stale, insufficient or fails, AI Insights embeds a TradingView one-year price chart and Technical Analysis summary. Daily/weekly/monthly controls affect the technical indicators; the chart stays at one year of daily prices. Default is weekly. Provider branding, delayed-data disclosure and source links remain visible. This display is separate from the app's four-week walk-forward test and no widget values enter API/cache/AI.
+
+`test:forecast-ui` checks no-key/failure fallbacks, symbols, three periods, both themes at 390/768/1440, keyboard focus, refresh and late responses after logout using isolated widget fixtures. The native weekly chart and MFA/security suites still pass. Separate real-widget checks render NVDA charts and indicator counts in both appearances and all three technical periods; bare BRK.B also resolves to live indicator counts. The dark widget uses an opaque background to preserve text contrast.
+
 ## Automated checks
 
 - Native SQLite unit/API coverage (87 passing tests): async storage, rollback, account separation, revisions, password recovery, TOTP/OTP replay, persistent throttles, untrusted forwarded headers, first-use setup, session management and read-only legacy discovery.

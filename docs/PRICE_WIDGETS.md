@@ -38,3 +38,14 @@ Playwright ตรวจบัญชีที่ไม่มีคีย์ ร�
 - [Symbol Overview และช่วงเวลาที่รองรับ](https://www.tradingview.com/widget-docs/widgets/charts/symbol-overview/)
 - [ตัวอย่างกราฟและข้อมูลเมื่อชี้เส้น](https://www.tradingview.com/widget-docs/widgets/charts/symbol-overview/demos/compare/)
 - [Stock Candles ของ Finnhub](https://finnhub.io/docs/api/stock-candles)
+
+## แนวโน้มใน AI Insights
+
+เมื่อ API ประวัติของแอปยังไม่มีข้อมูลที่ใช้ได้ หน้า AI Insights แสดงกราฟราคา 1 ปีและ Technical Analysis ของ TradingView โดยไม่ต้องตั้งคีย์เพิ่ม เลือกกรอบเวลาตัวชี้วัดรายวัน รายสัปดาห์ หรือรายเดือนได้ เริ่มที่รายสัปดาห์ ปุ่มอัปเดตแนวโน้มตรวจแหล่งข้อมูลและเปิดการเชื่อมต่อวิดเจ็ตใหม่
+
+กราฟราคาใช้รายวันย้อนหลัง 1 ปี ส่วนกรอบเวลาในปุ่มใช้กับสัญญาณทางเทคนิคเท่านั้น ทั้งสองส่วนแสดงผลจากผู้ให้บริการโดยตรง ไม่อ่านค่าจาก iframe เข้า API/AI หรือ backtest คง branding/attribution และมีลิงก์เปิดข้อมูลต้นทาง ข้อมูลอาจล่าช้าและสัญญาณอาจเปลี่ยนขณะยังไม่จบแท่งราคา
+
+สัญญาณ TradingView เป็นสรุปจากตัวชี้วัดของผู้ให้บริการ ไม่ใช่ผลทดสอบกฎสี่สัปดาห์ของแอป หากมีประวัติ Alpha Vantage ที่สดและครบตามเกณฑ์ ยังคงแสดงกราฟรายสัปดาห์และผลทดสอบเดิม การไม่มีข้อมูล ข้อมูลไม่พอ ข้อมูลเก่า หรือ API ผิดพลาดจะใช้ส่วน TradingView เพื่อให้ยังเปิดดูได้
+
+- [Technical Analysis](https://www.tradingview.com/widget-docs/widgets/symbol-details/technical-analysis/)
+- [ตัวอย่างฝัง iframe ทางการ](https://www.tradingview.com/widget-docs/tutorials/iframe/build-page/widget-integration/)

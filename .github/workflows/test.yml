@@ -37,6 +37,9 @@ jobs:
       - run: npm run test:quotes-ui
         env:
           QUOTE_ARTIFACT_DIR: artifacts/quotes
+      - run: npm run test:forecast-ui
+        env:
+          FORECAST_ARTIFACT_DIR: artifacts/forecast
       - run: npm run test:article-ui
         env:
           ARTICLE_ARTIFACT_DIR: artifacts/article
@@ -53,6 +56,7 @@ jobs:
             artifacts/article
             artifacts/quotes
             artifacts/quote-comparison
+            artifacts/forecast
           if-no-files-found: ignore
       - run: npm run test:research-ui
       - run: npm run test:security-ui
