@@ -18,7 +18,9 @@ export async function createQuoteService(db, { apiKey = '', fetcher = fetch, now
         try {while (true) {const { done, value } = await reader.read();if (done) break;size += value.length;if (size > 65536) throw new Error('invalid');parts.push(value);}} catch (error) {await reader.cancel();throw error;} finally {reader.releaseLock();}
         const value = JSON.parse(Buffer.concat(parts).toString('utf8'));
         if (typeof value.c !== 'number' || !Number.isFinite(value.c) || value.c <= 0 || !Number.isSafeInteger(value.t) || value.t <= 0 || value.t * 1000 > now() + 300000) throw new Error('invalid');
-        const quote = { symbol, currency: 'USD', price: value.c, quoteAt: new Date(value.t * 1000).toISOString(), fetchedAt: new Date(now()).toISOString(), provider: 'Finnhub' };
+        const change=value.c-value.pc,changePercent=change/value.pc*100;
+        const previous=typeof value.pc==='number'&&Number.isFinite(value.pc)&&value.pc>0&&Number.isFinite(change)&&Number.isFinite(changePercent)?{previousClose:value.pc,change,changePercent}:{};
+        const quote = { symbol, currency: 'USD', price: value.c, ...previous, quoteAt: new Date(value.t * 1000).toISOString(), fetchedAt: new Date(now()).toISOString(), provider: 'Finnhub' };
         if (!closed) await db.run('UPDATE stock_quotes SET data=?,error=NULL WHERE symbol=?', [JSON.stringify(quote), symbol]);
       } catch (error) {
         const message = { quota: 'ผู้ให้บริการจำกัดโควตา กรุณารอก่อนลองใหม่', key: 'API key ไม่ถูกต้องหรือไม่มีสิทธิ์ข้อมูลนี้', invalid: 'ผู้ให้บริการยังไม่มีราคาที่ตรวจสอบได้', provider: 'ผู้ให้บริการไม่พร้อม' }[error.message] || 'เชื่อมต่อแหล่งราคาไม่ได้';

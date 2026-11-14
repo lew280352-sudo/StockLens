@@ -1,0 +1,102 @@
+{
+  "checkedAt": "2026-11-13T07:08:46.140Z",
+  "origin": "https://stocklen-znwy.onrender.com",
+  "source": {
+    "app.js": true,
+    "appearance.js": true,
+    "appearance.css": true
+  },
+  "preferencesAfterRedeploy": true,
+  "freeHostProfile": true,
+  "aiStatus": {
+    "status": 200,
+    "enabled": true,
+    "available": true,
+    "provider": "groq",
+    "model": "qwen/qwen3.8-27b",
+    "online": true,
+    "configured": true,
+    "digestAvailable": true
+  },
+  "newsItems": 38,
+  "freeBrief": {
+    "status": 200,
+    "provider": "headlines",
+    "articles": 5
+  },
+  "aiAttempt": {
+    "status": 200,
+    "provider": "groq",
+    "model": "qwen/qwen3.8-27b",
+    "generated": true,
+    "articles": 5,
+    "cached": false
+  },
+  "browser": {
+    "desktop": true,
+    "mobileViewport": true,
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "persistsAfterReload": true,
+    "javascriptErrors": 0
+  },
+  "ci": {
+    "commit": "6d0b150",
+    "url": "https://github.com/lew280352-sudo/StockLens/actions/runs/43385728800",
+    "test": "success",
+    "remoteStorage": "success",
+    "container": "success"
+  },
+  "limits": [
+    "Groq summary and Q&A generation verified; Gemini transport covered with fixtures only",
+    "Mobile browser viewport checked; no physical handset notification test"
+  ],
+  "liveAiGeneration": {
+    "checkedAt": "2026-11-13T07:26:44.360Z",
+    "origin": "https://stocklen-znwy.onrender.com",
+    "health": 200,
+    "sourceMatches": true,
+    "aiStatus": {
+      "status": 200,
+      "enabled": true,
+      "available": true,
+      "provider": "groq",
+      "model": "qwen/qwen3.8-27b",
+      "online": true,
+      "configured": true,
+      "digestAvailable": true
+    },
+    "news": {
+      "status": 200,
+      "items": 38
+    },
+    "summary": {
+      "status": 200,
+      "provider": "groq",
+      "model": "qwen/qwen3.8-27b",
+      "generated": true,
+      "articles": 5,
+      "cached": false
+    },
+    "answer": {
+      "status": 200,
+      "provider": "groq",
+      "supported": true,
+      "sources": 5
+    },
+    "testAccountDeleted": true
+  },
+  "liveAiUi": {
+    "checkedAt": "2026-11-13T07:28:33.360Z",
+    "origin": "https://stocklen-znwy.onrender.com",
+    "realSummaryVisible": true,
+    "questionFormEnabled": true,
+    "sourceLinks": 5,
+    "javascriptErrors": 0,
+    "desktop": true,
+    "mobileViewport": true,
+    "testAccountDeleted": true
+  }
+}

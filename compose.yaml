@@ -24,6 +24,9 @@ services:
       EMAIL_LOGIN_OTP_ENABLED: ${EMAIL_LOGIN_OTP_ENABLED:-false}
       AI_ENABLED: ${AI_ENABLED:-true}
       AI_PROVIDER: ${AI_PROVIDER:-auto}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
+      AI_DAILY_LIMIT: ${AI_DAILY_LIMIT:-20}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       GROQ_MODEL: ${GROQ_MODEL:-qwen/qwen3.8-27b}
       OLLAMA_URL: ${OLLAMA_URL:-http://127.0.0.1:11434}

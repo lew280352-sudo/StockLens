@@ -4,6 +4,25 @@ import { once } from 'node:events';
 import { createApp, initialState, normalizeSourceUrl } from '../server.mjs';
 import { feeds, verifiedFeeds } from '../feeds.mjs';
 
+test('news brief works without AI credentials, refreshes first, and respects enabled source ownership', async t => {
+  const server = await createApp({databasePath: ':memory:', aiEnabled: true, aiProvider: 'gemini', newsFetcher: async () => new Response(`<rss><channel><item><title>Apple news fixture</title><link>https://www.apple.com/newsroom/test</link><pubDate>${new Date().toUTCString()}</pubDate></item></channel></rss>`)});
+  server.listen(0, '127.0.0.1');await once(server, 'listening');t.after(() => server.shutdown());
+  const base = `http://127.0.0.1:${server.address().port}`;let cookie = '';
+  async function call(path, method = 'GET', data) {const response = await fetch(base + path, {method, headers: {Origin: base, Cookie: cookie, 'Content-Type': 'application/json'}, body: data ? JSON.stringify(data) : undefined});const value = await response.json();return {response, value};}
+  assert.equal((await call('/api/ai/summary', 'POST', {symbol: 'AAPL'})).response.status, 401);
+  const account = {name: 'Brief test', email: 'brief@example.com', password: 'long-test-password'};
+  await call('/api/register', 'POST', account);const login = await call('/api/login', 'POST', account);cookie = login.response.headers.get('set-cookie').split(';')[0];
+  assert.equal((await call('/api/ai/status')).value.digestAvailable, true);
+  for (const mode of ['ai', 'headlines']) {
+    const brief = await call('/api/ai/summary', 'POST', {symbol: 'AAPL', mode});assert.equal(brief.response.status, 200);
+    assert.equal(brief.value.generated, false);assert.equal(brief.value.articles.length, 1);assert.equal(brief.value.reason, mode === 'ai' ? 'not_configured' : 'selected');
+  }
+  const state = login.value.state;state.sources.forEach(source => source.enabled = false);
+  await call('/api/state', 'PUT', {state, userId: login.value.user.id, revision: login.value.revision});
+  assert.equal((await call('/api/ai/summary', 'POST', {symbol: 'AAPL', mode: 'headlines'})).response.status, 422);
+  assert.equal((await call('/api/ai/summary', 'POST', {symbol: 'AAPL', mode: 'ai'})).response.status, 422);
+});
+
 test('AI follow-up questions require a signed-in user and the same enabled headlines', async (t) => {
   const feed = feeds.find((item) => item.symbol === 'AAPL');
   assert.ok(feed);

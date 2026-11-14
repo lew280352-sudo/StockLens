@@ -1,4 +1,4 @@
-import {navigateUI,skipFirstUse} from './navigation.mjs';
+import {navigateUI,skipFirstUse,logoutUI} from './navigation.mjs';
 import { chromium } from 'playwright';
 import { once } from 'node:events';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -35,8 +35,8 @@ try {
   browser = await chromium.launch({ executablePath: process.env.BROWSER_PATH || (process.platform === 'win32' ? 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe' : undefined), headless: true });
   await phase('open-register', async (user) => {
     user.context = await browser.newContext({ viewport: user.device === 'desktop' ? { width: 1440, height: 1000 } : { width: 390, height: 844 } });
-    // Local-only benchmark: skip third-party font downloads, use the app's font fallback.
-    await user.context.route(/https:\/\/fonts\.(googleapis|gstatic)\.com\//, (route) => route.abort());
+    // This benchmark measures the local app; dedicated quote suites cover widgets.
+    await user.context.route('**/*', (route) => new URL(route.request().url()).origin === base ? route.continue() : route.abort());
     user.page = await user.context.newPage();user.page.setDefaultTimeout(30000);user.page.on('pageerror', (error) => user.errors.push(error.message));
     user.page.on('response', (response) => {if (response.url().startsWith(base + '/api/')) pendingMetrics.push((async () => {await response.finished().catch(() => {});const timing = response.request().timing();requests.push({ user: user.number, path: new URL(response.url()).pathname, status: response.status(), ms: Math.max(0, timing.responseEnd) });})());});
     await user.page.goto(base);await user.page.waitForSelector('#register-form');
@@ -66,17 +66,20 @@ try {
     const exported = await api(user, '/api/export');assert.equal(exported.status, 200);assert.equal(exported.data.user.email, user.email);assert.ok(exported.data.state.watchlist.includes('AAPL'));assert.doesNotMatch(JSON.stringify(exported.data), /password_hash|token_hash|qty|cost/);
   });
   await phase('logout-login-persistence', async (user) => {
-    const page = user.page;await page.locator(user.device === 'mobile' ? '.topbar [data-logout]' : '.topbar [data-logout]').click();await page.waitForSelector('#login-form');assert.equal(await page.locator('#main').innerHTML(), '');assert.equal((await api(user, '/api/export')).status, 401);
+    const page = user.page;await logoutUI(page);await page.waitForSelector('#login-form');assert.equal(await page.locator('#main').innerHTML(), '');assert.equal((await api(user, '/api/export')).status, 401);
     await login(user);const current = (await api(user, '/api/session')).data;assert.ok(current.state.watchlist.includes('AAPL'));assert.equal(current.state.sources.at(-1).url, `https://example.com/user-${user.number}`);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);assert.deepEqual(user.errors, []);user.status = 'passed';
   });
   for (const user of users.filter((u) => u.page && u.number <= 2)) await user.page.screenshot({ path: path.join(directory, `user-${user.number}.png`), fullPage: true }).catch(() => {});
 } finally {
-  await Promise.allSettled(pendingMetrics);await browser?.close();await server.shutdown();
+  // Stop page polling and finish/abort outstanding responses before awaiting metrics.
+  console.log('cleanup: closing browser');await browser?.close();
+  console.log('cleanup: collecting response metrics');await Promise.allSettled(pendingMetrics);
+  console.log('cleanup: closing server');await server.shutdown();
   const elapsedMs = Math.round(performance.now() - started),successfulTimes = requests.filter((r) => r.status < 400 && r.ms >= 0).map((r) => r.ms).sort((a, b) => a - b);
   const percentile = (p) => successfulTimes.length ? Math.round(successfulTimes[Math.min(successfulTimes.length - 1, Math.ceil(successfulTimes.length * p) - 1)]) : null;
   const statuses = {};for (const request of requests) statuses[request.status] = (statuses[request.status] || 0) + 1;
-  const report = { label, users: count, passed: users.filter((u) => u.status === 'passed').length, failed: users.filter((u) => u.status !== 'passed').length, elapsedMs, environment: { node: process.version, platform: process.platform, cpu: os.cpus()[0]?.model, browser: 'installed Chromium/Edge headless', database: 'isolated on-disk SQLite', network: 'localhost; all 20 contexts share one IP; third-party fonts blocked' }, api: { count: requests.length, statuses, successfulResponseMs: { p50: percentile(.5), p95: percentile(.95), max: percentile(1) } }, results: users.map(({ number, device, scenario, stage, status, checks, failure, errors }) => ({ number, device, scenario, stage, status, checks, failure, errors })) };
+  const report = { label, users: count, passed: users.filter((u) => u.status === 'passed').length, failed: users.filter((u) => u.status !== 'passed').length, elapsedMs, environment: { node: process.version, platform: process.platform, cpu: os.cpus()[0]?.model, browser: 'installed Chromium/Edge headless', database: 'isolated on-disk SQLite', network: 'localhost; all 20 contexts share one IP; external resources blocked' }, api: { count: requests.length, statuses, successfulResponseMs: { p50: percentile(.5), p95: percentile(.95), max: percentile(1) } }, results: users.map(({ number, device, scenario, stage, status, checks, failure, errors }) => ({ number, device, scenario, stage, status, checks, failure, errors })) };
   writeFileSync(path.join(directory, 'results.json'), JSON.stringify(report, null, 2));
   console.log(JSON.stringify({ report: path.join(directory, 'results.json'), passed: report.passed, failed: report.failed, elapsedMs, api: report.api }, null, 2));
   if (report.failed) process.exitCode = 1;

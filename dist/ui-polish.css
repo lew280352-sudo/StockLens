@@ -10,7 +10,7 @@ h1{font-size:30px;line-height:1.5;font-weight:650}h2{font-size:18px;line-height:
 .topbar-leading{display:flex;align-items:center;gap:26px;min-width:0}.topbar .brand{margin:0;font-size:25px;color:#f1edf7;flex-shrink:0}.brand-dot{color:#d8f68a}.brand-icon{width:34px;height:34px;flex-shrink:0}
 .breadcrumb{display:flex;align-items:center;gap:16px;font-size:12px;color:var(--muted);min-width:0}.breadcrumb b{color:#ded0ed;font-weight:500;white-space:nowrap}.top-actions{display:flex;align-items:center;gap:10px}
 .search-button{font-size:12px;color:var(--muted);min-height:44px;gap:8px}.search-button kbd{border-color:#51425f;background:#241c30;color:#c6bbd6}
-.icon-button,.account-logout{min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;border-radius:9px;color:#c1b6d0}.icon-button:hover{background:#352940;color:#fff}
+.icon-button,.account-link{min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;border-radius:9px;color:#c1b6d0}.icon-button:hover{background:#352940;color:#fff}
 .avatar,.avatar.small{color:#e9def8;background:#39294d;min-width:36px;min-height:36px;font-size:12px}.topbar .avatar{border:1px solid #59466d}
 main{padding:34px 40px 42px;min-height:calc(100dvh - 270px);max-width:1440px;margin:auto}.page-header{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:30px}.heading-actions{margin:0}.heading-actions .btn{margin-top:0}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;font:600 13px/1.5 var(--font);padding:11px 16px;border:1px solid #665373;border-radius:9px;background:#2a2135;color:#eee6f7;box-shadow:none;transition:background-color .18s,border-color .18s}

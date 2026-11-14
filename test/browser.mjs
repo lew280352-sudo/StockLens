@@ -1,4 +1,4 @@
-import {navigateUI,skipFirstUse} from './navigation.mjs';
+import {navigateUI,skipFirstUse,logoutUI} from './navigation.mjs';
 import { chromium } from 'playwright';
 import { once } from 'node:events';
 import { mkdtempSync } from 'node:fs';
@@ -56,7 +56,7 @@ try {
   assert.equal(await page.locator('#modal').getAttribute('open'), null);
   await page.locator('#company-query').fill('แอปเปิล');assert.equal(await page.locator('.company-card').count(), 1);
   await navigateUI(page,'following');assert.match(await page.locator('.company-grid').first().innerText(), /AAPL/);assert.equal(await page.locator('input[name=qty], input[name=cost]').count(), 0);assert.doesNotMatch(await page.locator('#main').innerText(), /0\.125001|ต้นทุนเฉลี่ย/);
-  await navigateUI(page,'insights');await page.locator('#ai-symbol').selectOption('NVDA');assert.match(await page.locator('.ai-trend').innerText(), /ยังเริ่ม AI ไม่ได้/);
+  await navigateUI(page,'insights');await page.locator('#ai-symbol').selectOption('NVDA');assert.equal(await page.locator('.ai-card').count(),0);assert.match(await page.locator('#related-news-title').innerText(), /ค้นหาข่าวที่เกี่ยวข้อง/);
   // A stale view must reload rather than silently overwrite a newer save.
   const snapshot = await page.evaluate(() => fetch('/api/session').then((r) => r.json()));
   await page.evaluate(async (snapshot) => {const next = structuredClone(snapshot.state);next.watchlist.push('MSFT');const r = await fetch('/api/state', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: snapshot.user.id, revision: snapshot.revision, state: next }) });if (!r.ok) throw new Error('failed to prepare concurrent save');}, snapshot);
@@ -73,13 +73,13 @@ try {
   await navigateUI(page,'sources');await page.locator('#source-form [name=name]').fill('Expired session source');await page.locator('#source-form [name=url]').fill('https://example.com/expired');await page.locator('#source-form [type=submit]').click();await page.waitForSelector('#login-form');
   assert.equal(await page.locator('#main').innerHTML(), '');
   await page.locator('[name=email]').fill('ui@example.com');await page.locator('[name=password]').fill('strong-test-password');await page.locator('#login-form [type=submit]').click();await page.waitForSelector('body:not(.signed-out)');await skipFirstUse(page);
-  await page.evaluate(()=>toast('ข่าวส่วนตัว PRIVATE-MSFT'));await page.locator('.topbar [data-logout]').click();await page.waitForSelector('#login-form');
+  await page.evaluate(()=>toast('ข่าวส่วนตัว PRIVATE-MSFT'));await logoutUI(page);await page.waitForSelector('#login-form');
   assert.equal(await page.locator('#main').innerHTML(), '');assert.doesNotMatch(await page.locator('#toast').innerText(),/PRIVATE-MSFT/);await page.reload();await page.waitForSelector('#login-form');
   await page.setViewportSize({ width: 390, height: 844 });await page.locator('[data-auth-mode=register]').first().click();await page.screenshot({ path: path.join(artifactDir, 'register-mobile.png'), fullPage: true });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   await page.locator('[data-auth-mode=login]').first().click();await page.locator('[name=email]').fill('ui@example.com');await page.locator('[name=password]').fill('strong-test-password');await page.locator('#login-form [type=submit]').click();await page.waitForSelector('body:not(.signed-out)');await skipFirstUse(page);
   await page.screenshot({ path: path.join(artifactDir, 'dashboard-mobile.png'), fullPage: true });assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   await page.locator('.topbar [data-page=sources]').click();await page.waitForSelector('#source-form');assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
-  await page.locator('.topbar [data-logout]').click();await page.waitForSelector('#login-form');
+  await logoutUI(page);await page.waitForSelector('#login-form');
   assert.deepEqual(errors, []);console.log('PASS: desktop/mobile registration, password mismatch, wrong-password rejection, login, news preferences, URL add/duplicate/delete/persistence, Thai search, AI, logout and overflow checks.');
 } finally {await browser?.close();await server.shutdown();}

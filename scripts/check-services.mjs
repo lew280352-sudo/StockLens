@@ -1,6 +1,6 @@
 import {feeds,fetchFeed} from '../feeds.mjs';
 import {openDatabase} from '../database.mjs';
-import {createAiService} from '../ai.mjs';
+import {aiConfiguration,createAiService} from '../ai.mjs';
 import nodemailer from 'nodemailer';
 
 // Network checks never print credentials or send email/Push to an unspecified recipient.
@@ -12,10 +12,10 @@ report.news=await Promise.all(feeds.map(async feed=>{
 if(process.env.TURSO_DATABASE_URL&&process.env.TURSO_AUTH_TOKEN){
  let db;try{db=await openDatabase({databaseUrl:process.env.TURSO_DATABASE_URL,authToken:process.env.TURSO_AUTH_TOKEN});await db.get('SELECT 1');report.database={status:'ok',check:'read-only connectivity; no import performed'};}catch{report.database={status:'failed',reason:'Database connection unavailable'};}finally{await db?.close();}
 }
-if(process.env.GROQ_API_KEY||process.env.OLLAMA_URL){
- const db=await openDatabase({databasePath:':memory:'}),provider=process.env.GROQ_API_KEY?'groq':'ollama';let ai;
+if(process.env.GEMINI_API_KEY||process.env.GROQ_API_KEY||process.env.OLLAMA_URL){
+ const db=await openDatabase({databasePath:':memory:'}),options=aiConfiguration(),provider=options.aiProvider==='hybrid'?'groq':options.aiProvider;let ai;
  try{
-  ai=await createAiService(db,{enabled:true,provider,apiKey:process.env.GROQ_API_KEY||'',baseUrl:process.env.OLLAMA_URL,model:provider==='groq'?(process.env.GROQ_MODEL||'qwen/qwen3.8-27b'):(process.env.OLLAMA_MODEL||'qwen3:8b')});
+  ai=await createAiService(db,{enabled:true,provider,apiKey:options.aiApiKey,model:options.aiModel,baseUrl:process.env.OLLAMA_URL});
   report.ai={status:(await ai.status()).available?'ok':'failed',check:'provider connectivity; summary quality not evaluated'};
  }catch{report.ai={status:'failed',reason:'AI provider unavailable'};}finally{ai?.close();await db.close();}
 }

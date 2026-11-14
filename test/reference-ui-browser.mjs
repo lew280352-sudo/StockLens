@@ -63,7 +63,7 @@ try{
    await page.setViewportSize({width,height:950});
   }
   await page.request.post(base+'/api/register',{headers:{Origin:base},data:{name:'บัญชีทดสอบ UI',email,password}});await page.locator('[data-auth-mode=login]').first().click();await page.locator('#login-form [name=password]').fill(password);await page.locator('#login-form [type=submit]').click();await page.waitForSelector('body:not(.signed-out)');
-  assert.equal(await readable(page,'.breadcrumb b','body'),true,'current page breadcrumb remains readable on the dark frame');
+  assert.equal(await page.locator('.breadcrumb').count(),0,'topbar omits the repeated page label');
   const dock=page.locator('.app-dock');assert.equal(await dock.isVisible(),true,'floating dock is available at every width');assert.equal(await dock.locator('button').count(),5);await dock.locator('[data-page=overview]').focus();await page.keyboard.press('ArrowRight');assert.equal(await dock.locator('[data-page=news]').evaluate(el=>el===document.activeElement),true);await page.keyboard.press('Enter');await page.waitForFunction(()=>location.hash==='#news');
   for(const destination of ['overview','news','following','insights']){
    await dock.locator(`[data-page=${destination}]`).click();await page.waitForFunction(route=>location.hash==='#'+route,destination);
@@ -71,7 +71,7 @@ try{
    const bounds=await dock.locator(`[data-page=${destination}]`).boundingBox(),bead=await dock.locator('.dock-bead').boundingBox();assert.ok(Math.abs((bounds.x+bounds.width/2)-(bead.x+bead.width/2))<2,'active bead tracks selected destination');assert.equal(await dock.locator(`[data-page=${destination}]`).getAttribute('aria-current'),'page');
   }
   await page.locator('[data-mobile-more]').click();await page.waitForSelector('#mobile-menu[open]');await page.keyboard.press('Escape');await page.waitForFunction(()=>document.activeElement?.hasAttribute('data-mobile-more'));
-  for(const destination of ['search','alerts','sources']){await page.locator('[data-mobile-more]').click();await page.locator(`#mobile-menu [data-page=${destination}]`).click();await page.waitForFunction(()=>document.activeElement===document.querySelector('#main h1'));assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);}
+  for(const destination of ['search','alerts','sources','account']){await page.locator('[data-mobile-more]').click();await page.locator(`#mobile-menu [data-page=${destination}]`).click();await page.waitForFunction(()=>document.activeElement===document.querySelector('#main h1'));assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);}
   await dock.locator('[data-page=overview]').click();await page.waitForFunction(()=>{const d=document.querySelector('.app-dock'),button=d.querySelector('[data-page=overview]').getBoundingClientRect(),bead=d.querySelector('.dock-bead').getBoundingClientRect();return Math.abs(button.x+button.width/2-bead.x-bead.width/2)<1;});await page.screenshot({path:`${artifacts}/overview-${width}.png`,fullPage:true,animations:'disabled'});
   await page.emulateMedia({reducedMotion:'reduce'});await page.locator('[data-mobile-more]').click();await page.keyboard.press('Escape');assert.deepEqual(errors,[]);await page.close();
  }

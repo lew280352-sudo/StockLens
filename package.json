@@ -19,16 +19,24 @@
     "audit:privacy": "node --env-file-if-exists=.env scripts/audit-privacy.mjs",
     "test:responsive": "node test/responsive-browser.mjs",
     "test:reference-ui": "node test/reference-ui-browser.mjs",
+    "test:article-ui": "node test/article-browser.mjs",
+    "test:appearance-ui": "node test/appearance-ai-browser.mjs",
     "test:account-ui": "node test/account-tools-browser.mjs",
     "check:services": "node --env-file-if-exists=.env scripts/check-services.mjs",
-    "find:legacy": "node scripts/find-legacy-data.mjs"
+    "find:legacy": "node scripts/find-legacy-data.mjs",
+    "test:password-ui": "node test/password-input-browser.mjs",
+    "test:quotes-ui": "node test/quotes-browser.mjs",
+    "test:comparison-ui": "node test/quote-comparison-browser.mjs",
+    "test:forecast-ui": "node test/forecast-browser.mjs"
   },
   "devDependencies": {
     "playwright": "^1.58.2"
   },
   "dependencies": {
     "@libsql/client": "^0.18.0",
+    "@mozilla/readability": "0.6.0",
     "fast-xml-parser": "^5.12.1",
+    "jsdom": "29.1.1",
     "nodemailer": "^10.1.7",
     "web-push": "^3.6.7"
   }

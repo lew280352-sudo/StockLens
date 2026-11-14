@@ -7,5 +7,5 @@ export function runtimeConfig(env=process.env){
   if(!Number.isInteger(trustedProxyHops)||trustedProxyHops<0||trustedProxyHops>4)throw new Error('TRUST_PROXY_HOPS must be 0–4');
   if(!['127.0.0.1','localhost','::1'].includes(host)&&!publicOrigin)throw new Error('Set APP_ORIGIN before listening beyond localhost');
   if((env.RENDER==='true'||env.REQUIRE_REMOTE_DATABASE==='true')&&(!databaseUrl||!authToken))throw new Error('TURSO_DATABASE_URL and TURSO_AUTH_TOKEN are required on this host');
-  return {port,host,publicOrigin,databaseUrl,authToken,trustedProxyHops,hostingProfile:env.HOSTING_PROFILE||''};
+  return {port,host,publicOrigin,databaseUrl,authToken,trustedProxyHops,hostingProfile:env.HOSTING_PROFILE||(env.RENDER==='true'?'render-free':'')};
 }

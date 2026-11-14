@@ -1,4 +1,4 @@
-import {navigateUI} from './navigation.mjs';
+import {navigateUI,logoutUI} from './navigation.mjs';
 import { chromium } from 'playwright';
 import { once } from 'node:events';
 import { randomBytes } from 'node:crypto';
@@ -40,7 +40,7 @@ try {
   await page.locator('#new-recovery-form [type=submit]').click();assert.equal((await rotation).status(),200);
   await page.waitForSelector('.recovery-notice input');assert.match(await page.locator('.recovery-notice input').inputValue(),/^[a-f0-9]{48}$/);
   await page.keyboard.press('Escape');
-  await page.locator('.topbar [data-logout]').click();await page.waitForSelector('#login-form');
+  await logoutUI(page);await page.waitForSelector('#login-form');
   await page.locator('#login-form [name=email]').fill('security-ui@example.com');await page.locator('#login-form [name=password]').fill('correct-test-password');
   await page.locator('#login-form [type=submit]').click();await page.waitForSelector('#login-challenge-form');
   assert.match(await page.locator('#login-challenge-form').innerText(), /Authenticator/);

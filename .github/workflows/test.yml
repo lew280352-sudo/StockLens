@@ -22,9 +22,27 @@ jobs:
       - run: npm run test:reference-ui
         env:
           REFERENCE_ARTIFACT_DIR: artifacts/reference
+      - run: npm run test:password-ui
+        env:
+          PASSWORD_ARTIFACT_DIR: artifacts/password
       - run: npm run test:account-ui
         env:
           ACCOUNT_ARTIFACT_DIR: artifacts/account
+      - run: npm run test:appearance-ui
+        env:
+          APPEARANCE_ARTIFACT_DIR: artifacts/appearance
+      - run: npm run test:comparison-ui
+        env:
+          COMPARISON_ARTIFACT_DIR: artifacts/quote-comparison
+      - run: npm run test:quotes-ui
+        env:
+          QUOTE_ARTIFACT_DIR: artifacts/quotes
+      - run: npm run test:forecast-ui
+        env:
+          FORECAST_ARTIFACT_DIR: artifacts/forecast
+      - run: npm run test:article-ui
+        env:
+          ARTICLE_ARTIFACT_DIR: artifacts/article
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -32,7 +50,13 @@ jobs:
           path: |
             artifacts/responsive
             artifacts/reference
+            artifacts/password
             artifacts/account
+            artifacts/appearance
+            artifacts/article
+            artifacts/quotes
+            artifacts/quote-comparison
+            artifacts/forecast
           if-no-files-found: ignore
       - run: npm run test:research-ui
       - run: npm run test:security-ui
