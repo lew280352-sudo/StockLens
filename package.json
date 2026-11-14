@@ -23,7 +23,8 @@
     "test:appearance-ui": "node test/appearance-ai-browser.mjs",
     "test:account-ui": "node test/account-tools-browser.mjs",
     "check:services": "node --env-file-if-exists=.env scripts/check-services.mjs",
-    "find:legacy": "node scripts/find-legacy-data.mjs"
+    "find:legacy": "node scripts/find-legacy-data.mjs",
+    "test:password-ui": "node test/password-input-browser.mjs"
   },
   "devDependencies": {
     "playwright": "^1.58.2"

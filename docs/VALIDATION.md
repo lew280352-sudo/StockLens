@@ -74,3 +74,7 @@ Article text caching is best effort: a remote-cache failure does not discard suc
 ## Direct first sign-in and scoped AI notice
 
 Fresh accounts now enter the overview after signing in, without the setup page interrupting login or reload. Setup remains available from More. The AI error notice in the footer appears only on AI Insights. The account browser suite checks the first login, reload, optional setup and notice visibility across app routes in both themes at 390/768/1440px; general UI and PWA regressions pass too.
+
+## Password character feedback
+
+84 unit/API tests pass. New passwords and recovery resets reject non-ASCII characters on the server without consuming a recovery code. Password fields reject unsupported typing and whole pasted insertions, with an accessible red warning beneath the field; a rejected value requires correction before submission. English letters, digits, printable ASCII symbols and ordinary spaces retain their existing behavior. Playwright covers masked/revealed and confirmation fields, IME composition, autofill fallback, programmatic submission, recovery/security forms and both themes at mobile/desktop widths. The existing reference UI suite still passes its 320px and short-viewport layout checks.

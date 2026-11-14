@@ -1,5 +1,9 @@
 /* Appearance shares layout and spacing; only reading surfaces and contrast change. */
 .risk-footer[hidden]{display:none}
+.password-character-error{display:block;margin-top:6px;color:#ac2340;font-size:12px;line-height:1.7;font-weight:400}
+.password-character-error[hidden]{display:none}
+html[data-theme=dark] .password-character-error{color:#ffb4c5}
+input[aria-invalid=true]{border-color:#c53953!important}
 .theme-toggle{gap:7px;white-space:nowrap;flex-shrink:0;font:500 12px var(--font);padding:8px;border:1px solid var(--line);background:var(--paper);color:var(--ink)}
 .theme-toggle svg{width:18px;height:18px}.auth-theme-toggle{position:absolute;right:20px;top:14px;z-index:3}
 html[data-theme=light]{--bg:#f6f5fa;--paper:#fff;--ink:#292234;--muted:#655c75;--line:#ddd6e8;--navy:#eee7f7;--accent:#5830aa;--danger:#a62b45;color-scheme:light;accent-color:var(--accent);scrollbar-color:#b1a4c3 #f6f5fa}
