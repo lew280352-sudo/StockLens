@@ -243,10 +243,12 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
         if ((await currentUser(req))?.id !== user.id) fail(401, 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
         return send(res, 200, { ...result, summary, aiError });
       }
-      if(pathname==='/api/ai/article'&&req.method==='POST'){
+      if(['/api/ai/article','/api/ai/article/ask'].includes(pathname)&&req.method==='POST'){
         const user=await currentUser(req);if(!user)fail(401,'กรุณาเข้าสู่ระบบ');
-        const input=await body(req),id=input.articleId;
+        const input=await body(req),id=input.articleId,asking=pathname.endsWith('/ask');
         if(typeof id!=='string'||!/^[a-f0-9]{24}$/.test(id))fail(400,'เลือกบทความจากรายการข่าว');
+        const question=typeof input.question==='string'?input.question.trim():'';
+        if(asking&&(question.length<5||question.length>300))fail(400,'กรุณาถามคำถาม 5–300 ตัวอักษร');
         async function selectedArticle(){
           const snapshot=await news.snapshot(),preferences=await userData(user);
           if(!preferences.state)fail(401,'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
@@ -263,10 +265,10 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
           const content=await articleReader.read(article.url);
           if((await currentUser(req))?.id!==user.id)fail(401,'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
           await selectedArticle();
-          result=await ai.summarizeArticle(article,content);
+          result=asking?await ai.askArticle(article,content,question):await ai.summarizeArticle(article,content);
         }catch(error){
           if(error.status)throw error;
-          const message={unsupported_article:'แหล่งนี้ยังอ่านเนื้อหาอัตโนมัติไม่ได้',article_too_large:'หน้าเว็บนี้ใหญ่เกินกว่าจะอ่านในครั้งเดียว',article_unreadable:'ยังแยกเนื้อหาบทความจากหน้านี้ไม่ได้',article_blocked:'เว็บต้นทางไม่เปิดให้อ่านเนื้อหาอัตโนมัติ',article_unavailable:'ดึงเนื้อหาบทความไม่สำเร็จ กรุณาลองใหม่',article_busy:'กำลังอ่านบทความหลายรายการ กรุณารอสักครู่',disabled:'AI ยังไม่เปิดใช้งาน',not_configured:'ยังไม่ได้เชื่อมบริการ AI',quota:'โควตา AI หมดชั่วคราว คุณยังอ่านข่าวต้นฉบับได้',credentials:'บริการ AI ปฏิเสธสิทธิ์การเข้าถึง',invalid_output:'AI ส่งคำตอบไม่ครบ กรุณาลองใหม่'}[error.code]||'สรุปเนื้อหาบทความไม่ได้ในขณะนี้ กรุณาลองใหม่';
+          const message={unsupported_article:'แหล่งนี้ยังอ่านเนื้อหาอัตโนมัติไม่ได้',article_too_large:'หน้าเว็บนี้ใหญ่เกินกว่าจะอ่านในครั้งเดียว',article_unreadable:'ยังแยกเนื้อหาบทความจากหน้านี้ไม่ได้',article_blocked:'เว็บต้นทางไม่เปิดให้อ่านเนื้อหาอัตโนมัติ',article_unavailable:'ดึงเนื้อหาบทความไม่สำเร็จ กรุณาลองใหม่',article_busy:'กำลังอ่านบทความหลายรายการ กรุณารอสักครู่',disabled:'AI ยังไม่เปิดใช้งาน',not_configured:'ยังไม่ได้เชื่อมบริการ AI',quota:'โควตา AI หมดชั่วคราว คุณยังอ่านข่าวต้นฉบับได้',credentials:'บริการ AI ปฏิเสธสิทธิ์การเข้าถึง',invalid_output:'AI ส่งคำตอบไม่ครบ กรุณาลองใหม่'}[error.code]||(asking?'ตอบคำถามจากบทความไม่ได้ในขณะนี้ กรุณาลองใหม่':'สรุปเนื้อหาบทความไม่ได้ในขณะนี้ กรุณาลองใหม่');
           if(error.code==='quota')return send(res,429,{error:message,retryAt:error.retryAt});
           if(error.code==='article_unavailable')return send(res,503,{error:message,code:error.code,stage:error.stage,...(error.upstreamStatus?{upstreamStatus:error.upstreamStatus}:{})});
           fail(['unsupported_article','article_too_large','article_unreadable','article_blocked'].includes(error.code)?422:503,message);

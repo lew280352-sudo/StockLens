@@ -2,9 +2,15 @@
 
 Production URL https://stocklen-znwy.onrender.com has been verified over HTTPS. Registration, login, preferences, onboarding and session revocation passed on a dedicated test account; no legacy account data was imported. The owner subsequently authorized a fresh database on 6 November 2026; legacy discovery/import is no longer a deployment prerequisite.
 
+## Article questions and related news (14 November 2026)
+
+AI Insights opens the article reader and an article-scoped question form. Related-news lookup sits below it and uses headline mode without model generation; the former headline-summary panel and Google News action are removed. POST `/api/ai/article/ask` reads the authorized article body on the server, bounds the question to 5–300 characters, shares the existing model quotas, and returns only validated source metadata plus the answer. Unsupported citations produce an insufficient-information response. Questions and answers remain in page memory and clear on logout/reload.
+
+87 unit/API tests pass, including body-only facts in the question prompt, forged citations, missing/disabled sources, blocked pages, and session/source/account-deletion races before generation plus source changes after generation. Browser checks cover article questions and citations, late answers after logout, responsive themes, related news without a model, quota handling, and PWA privacy.
+
 ## Automated checks
 
-- Native SQLite unit/API coverage (68 passing tests): async storage, rollback, account separation, revisions, password recovery, TOTP/OTP replay, persistent throttles, untrusted forwarded headers, first-use setup, session management and read-only legacy discovery.
+- Native SQLite unit/API coverage (87 passing tests): async storage, rollback, account separation, revisions, password recovery, TOTP/OTP replay, persistent throttles, untrusted forwarded headers, first-use setup, session management and read-only legacy discovery.
 - Real official @libsql/client HTTP driver against isolated libSQL containers: commit/rollback/reconnect, app restart retaining login/watchlist, revision races, credential changes during delayed login, concurrent MFA enrollment and overlapping startup migrations.
 - Import fixture checked against an isolated empty remote destination: unchanged password hashes, MFA key validation, watchlist conversion without holdings, revision preservation, discarded sessions/pending enrollment, occupied-target refusal and rollback.
 - Real HTTP 401 database startup fails closed; no local database file is created. No production credentials are used in tests.

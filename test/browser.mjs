@@ -56,7 +56,7 @@ try {
   assert.equal(await page.locator('#modal').getAttribute('open'), null);
   await page.locator('#company-query').fill('แอปเปิล');assert.equal(await page.locator('.company-card').count(), 1);
   await navigateUI(page,'following');assert.match(await page.locator('.company-grid').first().innerText(), /AAPL/);assert.equal(await page.locator('input[name=qty], input[name=cost]').count(), 0);assert.doesNotMatch(await page.locator('#main').innerText(), /0\.125001|ต้นทุนเฉลี่ย/);
-  await navigateUI(page,'insights');await page.locator('#ai-symbol').selectOption('NVDA');assert.match(await page.locator('.ai-trend').innerText(), /อ่านข่าวล่าสุดได้ฟรี/);
+  await navigateUI(page,'insights');await page.locator('#ai-symbol').selectOption('NVDA');assert.equal(await page.locator('.ai-card').count(),0);assert.match(await page.locator('#related-news-title').innerText(), /ค้นหาข่าวที่เกี่ยวข้อง/);
   // A stale view must reload rather than silently overwrite a newer save.
   const snapshot = await page.evaluate(() => fetch('/api/session').then((r) => r.json()));
   await page.evaluate(async (snapshot) => {const next = structuredClone(snapshot.state);next.watchlist.push('MSFT');const r = await fetch('/api/state', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: snapshot.user.id, revision: snapshot.revision, state: next }) });if (!r.ok) throw new Error('failed to prepare concurrent save');}, snapshot);

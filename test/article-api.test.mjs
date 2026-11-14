@@ -29,12 +29,12 @@ test('article summary authenticates, uses enabled-source IDs and sends body text
   assert.equal((await call('/api/ai/article',{cookie:first.cookie,data:{articleId:item.id}})).body.cached,true);assert.equal(reads,1);assert.equal(models,1);
 });
 
-test('article reader rechecks logout and source changes before invoking a model',async t=>{
-  for(const change of ['logout','source','delete']){
+test('article summary and questions recheck logout and source changes before invoking a model',async t=>{
+  for(const route of ['/api/ai/article','/api/ai/article/ask'])for(const change of ['logout','source','delete']){
     let release,entered,modelCalls=0;const gate=new Promise(resolve=>release=resolve),ready=new Promise(resolve=>entered=resolve);
     const {call,account}=await setup(t,{articleFetcher:async()=>{entered();await gate;return new Response(html,{headers:{'Content-Type':'text/html'}});},aiFetcher:async()=>{modelCalls++;return Response.json({message:{content:JSON.stringify(result)}});}});
     const user=await account(`article-race-${change}@example.com`),cookie=user.cookie,feed=await call('/api/news',{cookie});
-    const pending=call('/api/ai/article',{cookie,data:{articleId:feed.body.items[0].id}});await ready;
+    const pending=call(route,{cookie,data:{articleId:feed.body.items[0].id,question:'บทความนี้ระบุข้อมูลอะไรบ้าง?'}});await ready;
     try{
       if(change==='logout')await call('/api/logout',{cookie,data:{}});
       else if(change==='delete')await call('/api/account/delete',{cookie,data:{password:'article-test-password',confirm:user.body.user.email}});
@@ -47,7 +47,7 @@ test('article reader rechecks logout and source changes before invoking a model'
 test('unreadable content fails explicitly instead of silently summarizing the headline',async t=>{
   const {call,account}=await setup(t,{articleFetcher:async()=>new Response('blocked',{status:403})});
   const user=await account('article-blocked@example.com'),feed=await call('/api/news',{cookie:user.cookie});
-  const summary=await call('/api/ai/article',{cookie:user.cookie,data:{articleId:feed.body.items[0].id}});assert.equal(summary.status,422);assert.match(summary.body.error,/ไม่เปิดให้อ่าน/);assert.equal(summary.body.provider,undefined);
+  for(const route of ['/api/ai/article','/api/ai/article/ask']){const summary=await call(route,{cookie:user.cookie,data:{articleId:feed.body.items[0].id,question:'บทความระบุเรื่องอะไรบ้าง?'}});assert.equal(summary.status,422);assert.match(summary.body.error,/ไม่เปิดให้อ่าน/);assert.equal(summary.body.provider,undefined);}
 });
 
 test('article fetch failures expose a safe stage without upstream exception details',async t=>{
@@ -55,4 +55,40 @@ test('article fetch failures expose a safe stage without upstream exception deta
   const user=await account('article-unavailable@example.com'),feed=await call('/api/news',{cookie:user.cookie});
   const summary=await call('/api/ai/article',{cookie:user.cookie,data:{articleId:feed.body.items[0].id}});
   assert.equal(summary.status,503);assert.equal(summary.body.code,'article_unavailable');assert.equal(summary.body.stage,'fetch');assert.doesNotMatch(JSON.stringify(summary.body),/private upstream/);
+});
+
+test('article questions use the selected body, validate input and cite only the authorized article',async t=>{
+  let reads=0,models=0;
+  const {call,account}=await setup(t,{articleFetcher:async()=>{reads++;return new Response(html,{headers:{'Content-Type':'text/html'}});},aiFetcher:async(url,options)=>{
+    models++;const input=JSON.parse(JSON.parse(options.body).messages[1].content);
+    assert.match(input.content,/Cambridge in 2028/);assert.equal(input.question,'ห้องวิจัยจะเปิดที่ไหนและเมื่อไร?');assert.equal(input.article.title,'Company announcement');
+    return Response.json({message:{content:JSON.stringify({answer:'ห้องวิจัยจะเปิดใน Cambridge ปี 2028',supported:true,sourceIds:[input.article.id,'forged-source']})}});
+  }});
+  const route='/api/ai/article/ask',question='ห้องวิจัยจะเปิดที่ไหนและเมื่อไร?';
+  assert.equal((await call(route,{data:{articleId:'a'.repeat(24),question}})).status,401);
+  const user=await account('article-question@example.com'),other=await account('article-question-other@example.com');
+  const feed=await call('/api/news',{cookie:user.cookie}),item=feed.body.items[0];
+  for(const data of [{articleId:item.id,question:'x'},{articleId:item.id,question:'x'.repeat(301)},{url:item.url,question}])assert.equal((await call(route,{cookie:user.cookie,data})).status,400);
+  const state=structuredClone(other.body.state);state.sources.forEach(source=>source.enabled=false);
+  await call('/api/state',{cookie:other.cookie,method:'PUT',data:{state,userId:other.body.user.id,revision:other.body.revision}});
+  assert.equal((await call(route,{cookie:other.cookie,data:{articleId:item.id,question}})).status,409);assert.equal(reads,0);
+  const answer=await call(route,{cookie:user.cookie,data:{articleId:item.id,question}});
+  assert.equal(answer.status,200);assert.equal(answer.body.input,'article');assert.equal(answer.body.supported,true);assert.match(answer.body.answer,/Cambridge/);
+  assert.equal(answer.body.sources.length,1);assert.equal(answer.body.sources[0].id,item.id);assert.equal(answer.body.article.coverage,'complete');assert.equal(reads,1);assert.equal(models,1);
+  assert.doesNotMatch(JSON.stringify(answer.body),/This body detail|<article>|forged-source/);
+});
+
+test('article answers with forged citations are unsupported and late source changes do not return an answer',async t=>{
+  let release,entered;const gate=new Promise(resolve=>release=resolve),ready=new Promise(resolve=>entered=resolve);let calls=0;
+  const {call,account}=await setup(t,{aiFetcher:async(url,options)=>{
+    const input=JSON.parse(JSON.parse(options.body).messages[1].content);calls++;
+    if(calls===2){entered();await gate;}
+    return Response.json({message:{content:JSON.stringify({answer:'UNVERIFIED ANSWER',supported:true,sourceIds:calls===1?['forged-source']:[input.article.id]})}});
+  }});
+  const user=await account('article-question-late@example.com'),cookie=user.cookie,feed=await call('/api/news',{cookie}),data={articleId:feed.body.items[0].id,question:'ขอข้อมูลที่บทความระบุได้ไหม?'};
+  const unsupported=await call('/api/ai/article/ask',{cookie,data});assert.equal(unsupported.status,200);assert.equal(unsupported.body.supported,false);assert.deepEqual(unsupported.body.sources,[]);assert.doesNotMatch(unsupported.body.answer,/UNVERIFIED/);
+  const pending=call('/api/ai/article/ask',{cookie,data});await ready;
+  const state=structuredClone(user.body.state);state.sources.forEach(source=>source.enabled=false);
+  try{await call('/api/state',{cookie,method:'PUT',data:{state,userId:user.body.user.id,revision:user.body.revision}});}finally{release();}
+  const late=await pending;assert.equal(late.status,409);assert.doesNotMatch(JSON.stringify(late.body),/UNVERIFIED/);
 });
