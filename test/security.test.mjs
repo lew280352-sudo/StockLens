@@ -65,6 +65,28 @@ test('deleting an account requires reauthentication and revokes all sessions', a
   assert.equal((await call('/api/login', { method: 'POST', body: account })).status, 401);
 });
 
+test('rotating a recovery code for an MFA account requires a fresh second factor',async t=>{
+ const server=await createApp({databasePath:':memory:',mfaKeyHex:randomBytes(32).toString('hex')});server.listen(0,'127.0.0.1');await once(server,'listening');t.after(()=>server.shutdown());
+ const base=`http://127.0.0.1:${server.address().port}`;
+ async function post(route,data,cookie=''){
+  const r=await fetch(base+route,{method:'POST',headers:{Origin:base,'Content-Type':'application/json',Cookie:cookie},body:JSON.stringify(data)});
+  return {status:r.status,data:await r.json(),cookie:r.headers.get('set-cookie')?.split(';')[0]};
+ }
+ const account={name:'Recovery step-up',email:'recovery-step-up@example.com',password:'recovery-step-up-password'};
+ await post('/api/register',account);const {cookie}=await post('/api/login',account);
+ const setup=await post('/api/mfa/setup',{password:account.password},cookie),step=Math.floor(Date.now()/30000),used=totpCode(setup.data.secret,step);
+ assert.equal((await post('/api/mfa/enable',{code:used},cookie)).status,200);
+ const missing=await post('/api/recovery-code',{password:account.password},cookie);
+ assert.equal(missing.status,401,'an active session plus password must not mint an MFA bypass credential');assert.equal(missing.data.recoveryCode,undefined);
+ assert.equal((await post('/api/recovery-code',{password:account.password,totp:used},cookie)).status,401,'a consumed setup code cannot rotate recovery');
+ const code=totpCode(setup.data.secret,step+1),rotated=await post('/api/recovery-code',{password:account.password,totp:code},cookie);
+ assert.equal(rotated.status,200);assert.match(rotated.data.recoveryCode,/^[a-f0-9]{48}$/);
+ assert.equal((await post('/api/recovery-code',{password:account.password,totp:code},cookie)).status,401,'a consumed rotation code cannot be replayed');
+ const recovered=await post('/api/recover',{email:account.email,code:rotated.data.recoveryCode,password:'recovered-step-up-password'});
+ assert.equal(recovered.status,200,'the recovery credential remains usable after the step-up');
+ assert.equal((await post('/api/login',{...account,password:'recovered-step-up-password'})).status,200);
+});
+
 
 test('a failed session commit rolls back TOTP consumption so the same valid code can retry',async()=>{
  const directory=mkdtempSync(path.join(tmpdir(),'stocklens-totp-rollback-')),file=path.join(directory,'accounts.sqlite');

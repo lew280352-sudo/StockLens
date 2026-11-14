@@ -1,6 +1,7 @@
 import {DatabaseSync} from 'node:sqlite';
-import {mkdirSync} from 'node:fs';
+import {mkdirSync,chmodSync,openSync,closeSync,fchmodSync,constants} from 'node:fs';
 import path from 'node:path';
+import {fileURLToPath} from 'node:url';
 import {createClient} from '@libsql/client';
 
 // Both drivers expose promises. A single queue prevents an unrelated local
@@ -14,7 +15,14 @@ export async function openDatabase({databasePath=':memory:',databaseUrl='',authT
     client=remoteClientFactory({url:databaseUrl,authToken});
     try{await client.execute({sql:'SELECT 1',args:[]});}catch{client.close();throw new Error('Remote database unavailable');}
   }else{
-    if(databasePath!==':memory:')mkdirSync(path.dirname(path.resolve(databasePath)),{recursive:true});
+    if(databasePath!==':memory:'){
+      const directory=path.dirname(path.resolve(databasePath));
+      mkdirSync(directory,{recursive:true,mode:0o700});
+      // Only change our dedicated data directory, never a shared custom parent such as /tmp.
+      if(directory===fileURLToPath(new URL('./.data',import.meta.url)))chmodSync(directory,0o700);
+      const fd=openSync(databasePath,constants.O_RDWR|constants.O_CREAT|(constants.O_NOFOLLOW||0),0o600);
+      try{fchmodSync(fd,0o600);}finally{closeSync(fd);}
+    }
     native=new DatabaseSync(databasePath);
     native.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;');
   }
