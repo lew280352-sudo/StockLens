@@ -3,10 +3,14 @@ import {once} from 'node:events';
 import {mkdirSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import {createApp} from '../server.mjs';
+import {feeds} from '../feeds.mjs';
 import {navigateUI, skipFirstUse} from './navigation.mjs';
 
 const artifacts = process.env.APPEARANCE_ARTIFACT_DIR || 'test-artifacts/appearance';mkdirSync(artifacts, {recursive: true});
-const newsFetcher = async () => new Response(`<rss><channel>${Array.from({length: 10}, (_, index) => `<item><title>Apple introduces a new product ${index + 1}</title><link>https://www.apple.com/newsroom/test-${index + 1}</link><pubDate>${new Date(Date.now() - index * 60000).toUTCString()}</pubDate></item>`).join('')}</channel></rss>`);
+const newsFetcher = async url => {
+  const feed = feeds.find(item => item.feedUrl === url) || feeds[0];
+  return new Response(`<rss><channel>${Array.from({length: 10}, (_, index) => `<item><title>${feed.name} introduces a new product ${index + 1}</title><link>${feed.url}test-${index + 1}</link><pubDate>${new Date(Date.now() - index * 60000).toUTCString()}</pubDate></item>`).join('')}</channel></rss>`);
+};
 const server = await createApp({databasePath: ':memory:', newsFetcher, aiEnabled: true, aiProvider: 'gemini'});
 server.listen(0, '127.0.0.1');await once(server, 'listening');
 const base = `http://127.0.0.1:${server.address().port}`, browser = await chromium.launch();
@@ -37,6 +41,9 @@ try {
     await page.reload();await skipFirstUse(page);await navigateUI(page, 'insights');
     await page.waitForFunction(() => !aiStatus.available && aiStatus.digestAvailable);
     assert.equal(await page.locator('[data-ai-summary]').isEnabled(), true);
+    assert.equal(await page.locator('[data-ai-summary]').innerText(), 'ค้นหาข่าว');
+    assert.equal(await page.locator('[data-headline-brief]').count(), 0);
+    assert.equal(await page.locator('.ai-card').evaluate(card => card.lastElementChild.querySelector('[data-ai-summary]') !== null), true);
     await page.locator('[data-ai-summary]').click();await page.waitForSelector('.ai-references summary');
     assert.equal(await page.locator('#ai-question-form').count(), 0);
     assert.match(await page.locator('.ai-card').innerText(), /ไม่ใช่ผลสรุปจาก AI/);
@@ -85,12 +92,14 @@ try {
     await page.request.post(origin + '/api/register', {headers: {Origin: origin}, data: account});await page.request.post(origin + '/api/login', {headers: {Origin: origin}, data: account});
     await page.goto(origin);await skipFirstUse(page);await navigateUI(page, 'insights');await page.waitForFunction(() => aiStatus.available);
     assert.match(await page.locator('.ai-badge').first().innerText(), /Gemini พร้อมใช้/);
+    assert.equal(await page.locator('[data-ai-summary]').innerText(), 'ค้นหาข่าว');
+    assert.equal(await page.locator('[data-headline-brief]').count(), 0);
     await page.locator('[data-ai-summary]').click();await page.waitForSelector('#ai-question-form');
     assert.match(await page.locator('.ai-confidence').innerText(), /Gemini/);
     assert.equal(await page.locator('.ai-references a').first().isVisible(), false);
     await page.locator('#ai-question').fill('ประกาศเกี่ยวกับอะไร?');await page.locator('#ai-question-form button').click();await page.waitForSelector('.ai-answer');assert.equal(await page.locator('.ai-answer-sources a').count(), 1);
     await page.locator('#ai-question').fill('ประกาศอีกครั้งได้ไหม?');await page.locator('#ai-question-form button').click();await page.waitForSelector('.ai-qa .form-error');assert.match(await page.locator('.ai-qa .form-error').innerText(), /โควตา/);
-    await page.locator('[data-headline-brief]').click();await page.waitForFunction(() => aiSummaries.AAPL?.generated === false);assert.equal(await page.locator('#ai-question-form').count(), 0);assert.equal(await page.locator('.ai-sources a').count(), 10);assert.equal(await page.locator('.ai-references a').first().isVisible(), false);assert.deepEqual(errors, []);await page.close();
+    await page.locator('#ai-symbol').selectOption('MSFT');await page.locator('[data-ai-summary]').click();await page.waitForFunction(() => aiSummaries.MSFT?.generated === false);assert.equal(await page.locator('#ai-question-form').count(), 0);assert.equal(await page.locator('.ai-sources a').count(), 10);assert.equal(await page.locator('.ai-references a').first().isVisible(), false);assert.match(await page.locator('.ai-availability').first().innerText(), /ขีดจำกัด AI รายวัน/);assert.deepEqual(errors, []);await page.close();
   } finally {await connected.shutdown();}
   console.log('PASS: light/dark only, reload and cross-tab persistence, denied storage, accessible contrast, no-key live-source brief and responsive routes at 390/768/1440.');
 } finally {await browser.close();await server.shutdown();}
