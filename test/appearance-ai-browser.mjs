@@ -55,11 +55,13 @@ try {
       assert.ok(await contrast(page, '.subtitle', 'body') >= 4.5);
       assert.ok(await contrast(page, '.related-news-card>p', '.related-news-card') >= 4.5);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
-      assert.equal(await page.locator('.ai-references').getAttribute('open'), null);
-      assert.equal(await page.locator('.ai-references a').first().isVisible(), false);
+      assert.equal(await page.locator('.ai-references').evaluate(element => element.open), true);
+      assert.equal(await page.locator('.ai-references a').first().isVisible(), true);
       assert.match(await page.locator('.ai-references summary').innerText(), /แหล่งอ้างอิง.*10 ข่าว/s);
       await page.screenshot({path: `${artifacts}/insights-${mode}-${width}.png`, fullPage: true, animations: 'disabled'});
-      await page.locator('.ai-references summary').focus();await page.keyboard.press('Enter');
+      await page.locator('.ai-references summary').focus();await page.keyboard.press('Space');
+      assert.equal(await page.locator('.ai-references a').first().isVisible(), false);
+      await page.keyboard.press('Enter');
       assert.equal(await page.locator('.ai-references a').first().isVisible(), true);
       assert.match(await page.locator('.ai-references').innerText(), /เผยแพร่.*น\. \(ไทย\)/s);
       assert.equal(await page.locator('.ai-references a').first().getAttribute('rel'), 'noopener noreferrer');
@@ -100,7 +102,7 @@ try {
     assert.equal(await page.locator('.ai-references').count(), 0);
     await page.locator('#article-question').fill('ประกาศเกี่ยวกับอะไร?');await page.locator('#article-question-form button').click();await page.waitForSelector('.ai-answer');assert.equal(await page.locator('.ai-answer-sources a').count(), 1);
     await page.locator('#article-question').fill('ประกาศอีกครั้งได้ไหม?');await page.locator('#article-question-form button').click();await page.waitForSelector('.article-qa .form-error');assert.match(await page.locator('.article-qa .form-error').innerText(), /โควตา/);
-    await page.locator('[data-ai-summary]').click();await page.waitForFunction(() => aiSummaries.AAPL?.generated === false);assert.equal(await page.locator('.ai-sources a').count(), 10);assert.equal(await page.locator('.ai-references a').first().isVisible(), false);assert.deepEqual(errors, []);await page.close();
+    await page.locator('[data-ai-summary]').click();await page.waitForFunction(() => aiSummaries.AAPL?.generated === false);assert.equal(await page.locator('.ai-sources a').count(), 10);assert.equal(await page.locator('.ai-references a').first().isVisible(), true);assert.deepEqual(errors, []);await page.close();
   } finally {await connected.shutdown();}
   console.log('PASS: light/dark only, reload and cross-tab persistence, denied storage, accessible contrast, no-key live-source brief and responsive routes at 390/768/1440.');
 } finally {await browser.close();await server.shutdown();}

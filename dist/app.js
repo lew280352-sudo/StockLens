@@ -59,7 +59,7 @@ async function runAISummary(mode='headlines'){
  if(!currentUser||aiBusy||articleBusy||aiQuestionBusy)return;const userId=currentUser.id,epoch=aiEpoch,symbol=selectedStock;aiBusy=true;aiError='';render();
  try{const result=await api('/api/ai/summary',{method:'POST',body:{symbol,mode},timeout:125000});if(epoch!==aiEpoch||currentUser?.id!==userId)return;aiSummaries[symbol]=result;}
  catch(error){if(epoch!==aiEpoch)return;aiError=error.message;if(error.status===401)showSignedOut('login');}
- finally{if(epoch===aiEpoch){aiBusy=false;if(currentUser)render();}}
+ finally{if(epoch===aiEpoch){aiBusy=false;if(currentUser){render();if(page==='insights'&&selectedStock===symbol&&!aiError)$('#related-news .ai-references')?.scrollIntoView({block:'start',behavior:'instant'});}}}
 }
 
 function canRedraw(){return !document.activeElement?.closest('form')&&!$('#modal').open;}
@@ -73,7 +73,7 @@ function aiAnswerCard(item){return `<article class="ai-answer"><div class="ai-an
 function aiProviderLabel(provider){return {gemini:'Gemini',groq:'Groq',ollama:'Ollama',headlines:'รวมหัวข้อข่าว'}[provider]||'AI';}
 function aiReferences(articles){
  if(!articles?.length)return '';
- return `<details class="ai-sources ai-references"><summary><span>แหล่งอ้างอิง</span><span class="ai-reference-count">${articles.length} ข่าว</span>${icon('chevron')}</summary><ul class="ai-reference-list">${articles.map(item=>`<li><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer"><span class="ai-reference-copy"><span class="ai-reference-publisher">${escapeHtml(item.source)}</span><span class="ai-reference-title">${escapeHtml(item.title)}</span><small>เผยแพร่ ${escapeHtml(dateLabel(item.publishedAt))}${item.stale?' · ข้อมูลเก่า / อัปเดตไม่สำเร็จ':''}</small></span>${icon('external')}</a></li>`).join('')}</ul></details>`;
+ return `<details class="ai-sources ai-references" open><summary><span>แหล่งอ้างอิง</span><span class="ai-reference-count">${articles.length} ข่าว</span>${icon('chevron')}</summary><ul class="ai-reference-list">${articles.map(item=>`<li><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer"><span class="ai-reference-copy"><span class="ai-reference-publisher">${escapeHtml(item.source)}</span><span class="ai-reference-title">${escapeHtml(item.title)}</span><small>เผยแพร่ ${escapeHtml(dateLabel(item.publishedAt))}${item.stale?' · ข้อมูลเก่า / อัปเดตไม่สำเร็จ':''}</small></span>${icon('external')}</a></li>`).join('')}</ul></details>`;
 }
 function renderRelatedNews(){
  const result=aiSummaries[selectedStock];

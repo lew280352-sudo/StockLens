@@ -37,7 +37,7 @@ try {
   const restored = await page.evaluate(() => fetch('/api/news').then((r) => r.json()));assert.ok(restored.items.some((n) => n.symbol === 'MSFT'));
   await navigateUI(page,'insights');await page.locator('#ai-symbol').selectOption('MSFT');await page.locator('[data-article-summary]').click();await page.waitForSelector('.article-summary');assert.match(await page.locator('.article-summary').innerText(), /สรุป Microsoft/);await page.locator('[data-ai-summary]').click();await page.waitForSelector('.ai-references');assert.equal(await page.locator('.ai-sources a').count(), 1);
   assert.match(await page.locator('.article-summary').innerText(), /อ่านต้นฉบับเมื่อ/s);
-  await page.locator('.ai-references summary').click();
+  assert.equal(await page.locator('.ai-references a').first().isVisible(),true);
   assert.match(await page.locator('.ai-sources').innerText(), /เผยแพร่.*น\. \(ไทย\)/s);
   await page.locator('.ai-references summary').click();
   await page.locator('#article-question').fill('ข่าวนี้เกี่ยวกับอะไร?');await page.locator('#article-question-form button').click();
