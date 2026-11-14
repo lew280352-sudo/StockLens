@@ -177,7 +177,7 @@ export async function createApp({ databasePath = path.join(root, '.data', 'stock
   }
   const server = http.createServer(async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');res.setHeader('X-Content-Type-Options', 'nosniff');res.setHeader('Referrer-Policy', 'no-referrer');res.setHeader('X-Frame-Options', 'DENY');
-    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-src https://www.tradingview-widget.com; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
     try {
       const localHosts = [`127.0.0.1:${server.address().port}`, `localhost:${server.address().port}`];
       const allowed = publicOrigin ? [publicHost, ...localHosts] : localHosts;
