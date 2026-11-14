@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "io.github.lew280352.stocklens",
+      "sha256_cert_fingerprints": [
+        "7A:26:0C:85:66:0B:9A:6A:BB:F9:10:0E:95:BC:79:75:AF:D6:32:1F:63:2B:56:2D:19:64:89:11:DE:B3:FE:41"
+      ]
+    }
+  }
+]

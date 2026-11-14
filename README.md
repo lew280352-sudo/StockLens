@@ -1,5 +1,11 @@
 # StockLens 0.9.2 — ข่าวบริษัทสหรัฐฯ / PWA
 
+## ดาวน์โหลด Android
+
+[ดาวน์โหลด StockLens สำหรับ Android (.apk)](https://github.com/lew280352-sudo/StockLens/releases/download/android-v0.9.2-beta.1/StockLens-0.9.2-beta.1.apk) · [ไฟล์รุ่นและ checksum](https://github.com/lew280352-sudo/StockLens/releases/tag/android-v0.9.2-beta.1)
+
+รุ่น Android 0.9.2 Beta สำหรับ Android 8.0 ขึ้นไป ใช้ Chrome หรือเบราว์เซอร์ที่รองรับ TWA และต้องต่ออินเทอร์เน็ต เปิดไฟล์ APK แล้วอนุญาตให้เบราว์เซอร์/ตัวจัดการไฟล์ติดตั้งเมื่อ Android ถาม บัญชีและข้อมูลใช้เว็บออนไลน์เดิม [วิธีสร้างและลงนาม](android/README.md)
+
 คลาวด์ฟรีโดยไม่เปิดคอมค้างไว้: [ขั้นตอน Render Free + Turso Free และย้ายบัญชีเดิม](docs/FREE_CLOUD.md) — มีการพักบริการและโควตาฟรี ต้องตั้งค่าและตรวจ deploy จริงก่อนถือว่าออนไลน์
 **อัปเดต AI ฟรี:** ใช้ GroqCloud/Qwen 3.8 27B เป็นตัวหลัก แล้ว fallback ไป Ollama/Qwen3 8B อัตโนมัติเมื่อออนไลน์ขัดข้องหรือโควตาหมด พร้อม structured output, แหล่งอ้างอิง และ cache อ่าน [คู่มือตั้งค่า AI](docs/LOCAL_AI.md)
 

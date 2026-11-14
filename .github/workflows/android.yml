@@ -1,0 +1,40 @@
+name: StockLens Android
+on:
+  push:
+    paths: ['android/**', 'dist/.well-known/assetlinks.json', '.github/workflows/android.yml']
+  pull_request:
+    paths: ['android/**', 'dist/.well-known/assetlinks.json', '.github/workflows/android.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: android-${{ runner.os }}-${{ hashFiles('android/**/*.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+      - name: Install Android SDK components
+        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0"'
+      - name: Lint and build unsigned release
+        working-directory: android
+        run: ./gradlew --no-daemon --max-workers=2 lintRelease assembleRelease
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stocklens-android-unsigned
+          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: stocklens-android-lint
+          path: android/app/build/reports/lint-results-release.*
+          if-no-files-found: ignore
